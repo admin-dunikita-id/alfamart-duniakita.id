@@ -211,12 +211,17 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                                     {...register('store_code', { required: 'Kode toko harus dipilih' })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                 >
-                                    <option value="">Pilih toko</option>
-                                    {stores.map((store) => (
-                                        <option key={store.store_code} value={store.store_code}>
-                                            {store.store_name} ({store.store_code})
+                                    {employeeData?.store ? (
+                                        <option value={employeeData.store.store_code}>
+                                            {employeeData.store.store_name} ({employeeData.store.store_code})
                                         </option>
-                                    ))}
+                                    ) : (
+                                        stores.map((store) => (
+                                            <option key={store.store_code} value={store.store_code}>
+                                                {store.store_name} ({store.store_code})
+                                            </option>
+                                        ))
+                                    )}
                                 </select>
                                 {errors.store_code && <p className="text-red-600">{errors.store_code.message}</p>}
 
@@ -228,9 +233,16 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
 
-                                    <option value="">Pilih jenis kelamin</option>
-                                    <option value="male">Laki-laki</option>
-                                    <option value="female">Perempuan</option>
+                                    {employeeData?.gender ? (
+                                        <option value={employeeData.gender}>
+                                            {employeeData.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
+                                        </option>
+                                    ) : (
+                                        <>
+                                            <option value="male">Laki-laki</option>
+                                            <option value="female">Perempuan</option>
+                                        </>
+                                    )}
                                 </select>
                                 {errors.gender && <p className="text-red-600">{errors.gender.message}</p>}
                             </div>
