@@ -91,6 +91,7 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
         fetchStores();
     }, [scheduleAPI]);
 
+
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md mx-auto">
             <div className="flex justify-between mb-6">
@@ -151,6 +152,14 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                                         const result = await checkNik(nik);
                                         setCheckingNik(false);
 
+                                        if (result?.data?.status === 'active' && result?.data?.activation_token !== null) {
+                                            setError('nik', { type: 'manual', message: 'NIK sudah terdaftar' });
+                                            toast.error('NIK sudah terdaftar, silakan login');
+                                            setNikValidated(true);
+                                            setStep(0);
+                                            return;
+                                        }
+
                                         if (result.success) {
                                             toast.success('NIK valid, lanjut isi data');
                                             setNikValidated(true);
@@ -181,12 +190,12 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                         <>
                             <div>
                                 <label>Nama Lengkap</label>
-                                <input {...register('name', { required: 'Nama harus diisi' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                                <input disabled={register('name')} {...register('name', { required: 'Nama harus diisi' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                                 {errors.name && <p className="text-red-600">{errors.name.message}</p>}
                             </div>
                             <div>
                                 <label>Email</label>
-                                <input
+                                <input disabled={register('email')}
                                     {...register('email', {
                                         required: 'Email harus diisi',
                                         pattern: { value: /^\S+@\S+$/i, message: 'Format email tidak valid' },
@@ -197,7 +206,7 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                             </div>
                             <div>
                                 <label>NIK</label>
-                                <input {...register('nik', { required: 'NIK harus diisi' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                                <input disabled={register('nik')} {...register('nik', { required: 'NIK harus diisi' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                                 {errors.nik && <p className="text-red-600">{errors.nik.message}</p>}
                             </div>
                         </>
@@ -207,7 +216,7 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                         <>
                             <div>
                                 <label>Kode Toko</label>
-                                <select
+                                <select disabled={employeeData?.store}
                                     {...register('store_code', { required: 'Kode toko harus dipilih' })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                 >
@@ -228,7 +237,7 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                             </div>
                             <div>
                                 <label>Jenis Kelamin</label>
-                                <select
+                                <select disabled={employeeData?.gender}
                                     {...register('gender', { required: 'Jenis kelamin harus dipilih' })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
@@ -248,7 +257,7 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                             </div>
                             <div>
                                 <label>No. Telepon</label>
-                                <input {...register('phone')} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                                <input disabled={register('phone')} {...register('phone')} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                                 {errors.phone && <p className="text-red-600">{errors.phone.message}</p>}
                             </div>
                         </>
