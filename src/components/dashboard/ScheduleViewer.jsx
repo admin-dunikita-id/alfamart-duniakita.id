@@ -57,9 +57,8 @@ const ScheduleViewer = () => {
             try {
                 const data = await scheduleAPI.getStores();
                 let storeList = data.data || [];
-                if (user?.role === 'cos') {
-                    // Hanya store milik user COS
-                    storeList = storeList.filter(store => store.id === user?.store_id);
+                if ((user?.role === 'cos' || user?.role === 'employee') && user?.store_id) {
+                    storeList = storeList.filter(store => store.id === user.store_id);
                 } else if (user?.role !== 'admin') {
                     // Employee biasa
                     storeList = storeList.filter(store => store.id === user?.store_id);

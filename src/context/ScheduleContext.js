@@ -257,6 +257,7 @@ export const ScheduleProvider = ({ children }) => {
         getStores: async () => {
             // const response = await fetch(`${API_BASE_URL}/list-stores`);
             const token = localStorage.getItem('token');
+            console.log(token)
             const response = await fetch(`${API_BASE_URL}/stores`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
