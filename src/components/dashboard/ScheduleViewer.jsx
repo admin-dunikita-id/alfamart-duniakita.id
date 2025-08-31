@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSchedule, useAuth } from '@/context';
 import clsx from 'clsx';
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 const ScheduleViewer = () => {
     const { scheduleAPI } = useSchedule();
@@ -18,6 +20,7 @@ const ScheduleViewer = () => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const dayNumbers = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const [loadingStore, setLoadingStore] = useState(true);
+
 
     const fetchSchedule = async () => {
         try {
@@ -83,6 +86,98 @@ const ScheduleViewer = () => {
         }
     };
 
+// ⬅️ Fungsi export ke Excel
+const exportToExcel = async () => {
+  if (!data) return;
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Jadwal", {
+    pageSetup: { orientation: "landscape", fitToPage: true }
+  });
+
+  const monthName = new Date(year, month).toLocaleString("id-ID", { month: "long" });
+
+  // Judul
+  worksheet.mergeCells(1, 1, 1, dayNumbers.length + 1);
+  worksheet.getCell("A1").value = `Jadwal Shift Bulan ${monthName} ${year}`;
+  worksheet.getCell("A1").alignment = { horizontal: "center" };
+  worksheet.getCell("A1").font = { bold: true, size: 14 };
+
+  // Header
+  const headerRow = ["Nama", ...dayNumbers.map(d => d.toString())];
+  worksheet.addRow([]); // baris kosong
+  const header = worksheet.addRow(headerRow);
+
+// Style kolom "Nama"
+const nameHeader = header.getCell(1);
+nameHeader.font = { bold: true, color: { argb: "000000" } }; // hitam
+nameHeader.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFFFFF" } // putih
+};
+
+// Style kolom tanggal (warna hitam + abu-abu)
+dayNumbers.forEach((_, i) => {
+  const cell = header.getCell(i + 2); // +2 karena index 1 = Nama
+  cell.font = { bold: true, color: { argb: "000000" } }; // teks hitam
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "E5E7EB" } // abu-abu (tailwind gray-200)
+  };
+});
+
+  // Mapping warna shift (Excel pakai hex ARGB)
+  const shiftColors = {
+  P: { bg: "DCFCE7", text: "166534" }, // hijau
+  S: { bg: "FEF9C3", text: "854D0E" }, // kuning
+  M: { bg: "FEE2E2", text: "991B1B" }, // merah
+  O: { bg: "FFFFFF", text: "9CA3AF" }, // putih + abu
+  "-": { bg: "FFFFFF", text: "6B7280" } // default gray-500
+};
+
+  // Data isi
+  Object.values(data).forEach(({ employee, schedule }) => {
+    const rowData = [
+      employee.name,
+      ...dayNumbers.map(day => schedule?.[day]?.shift?.shift_code || "-")
+    ];
+
+    const row = worksheet.addRow(rowData);
+
+    row.eachCell((cell, colNumber) => {
+    if (colNumber > 1) {
+        const code = cell.value;
+        const style = shiftColors[code] || shiftColors["-"];
+
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: style.bg }
+        };
+        cell.font = {
+        color: { argb: style.text },
+        bold: true
+        };
+    }
+    });
+  });
+
+  // Lebar kolom
+  worksheet.columns = [
+    { width: 20 },
+    ...dayNumbers.map(() => ({ width: 4 }))
+  ];
+
+  // Download
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `jadwal_shift_${month + 1}_${year}.xlsx`);
+};
+
+
+
     return (
         <div className="space-y-6">
             {/* Filter */}
@@ -128,11 +223,19 @@ const ScheduleViewer = () => {
                     />
                 </div>
 
+                {/* Tombol Refresh */}
                 <button
                     onClick={fetchSchedule}
-                    className="ml-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 >
                     🔁 Refresh
+                </button>
+                {/* Tombol Export Excel */}
+                <button
+                    onClick={exportToExcel}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                >
+                    📊 Export Excel
                 </button>
             </div>
 

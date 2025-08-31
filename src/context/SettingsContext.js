@@ -7,11 +7,20 @@ export const SettingsProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [stores, setStores] = useState([]);
 
-    const updateStore = async (data) => {
+// bedasarkan setting toko
+//    const updateStore = async (data) => {
+//        setLoading(true);
+//        await api.post('/settings/store', data);
+//        setLoading(false);
+//    };
+
+// berdasarkan setting /stores/{id}
+    const updateStore = async (id, data) => {
         setLoading(true);
-        await api.post('/settings/store', data);
+        await api.put(`/stores/${id}`, data);
         setLoading(false);
     };
+
 
     const fetchStores = async () => {
         try {

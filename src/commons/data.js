@@ -6,8 +6,12 @@ import {
     UsersIcon,
     ChartBarIcon,
     Cog6ToothIcon,
+    ClipboardDocumentListIcon,
+    ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline';
 import { ScheduleGenerator, ScheduleViewer, EmployeeManagement, ReportDashboard } from '@/components/dashboard';
+import LeaveRequestsPage from '@/components/dashboard/LeaveRequestsPage';
+import ShiftSwapPage from '@/components/dashboard/ShiftSwapPage';
 import { SettingsPanel } from '@/components/dashboard'
 export const cards = [
     {
@@ -46,6 +50,24 @@ export const cards = [
         component: EmployeeManagement,
         roles: ['admin']
     },
+    {
+    id: 'leave',
+    title: 'Pengajuan Cuti / Izin',
+    description: 'Ajukan cuti / Izin dan pantau statusnya',
+    icon: ClipboardDocumentListIcon,
+    gradient: 'from-sky-500 to-cyan-500',
+    component: LeaveRequestsPage,
+    roles: ['admin', 'acos', 'cos', 'employee']
+  },
+  {
+    id: 'shift-swap',
+    title: 'Tukar Shift',
+    description: 'Ajukan permintaan tukar shift',
+    icon: ArrowsRightLeftIcon,
+    gradient: 'from-rose-500 to-red-500',
+    component: ShiftSwapPage,
+    roles: ['admin', 'acos', 'cos', 'employee']
+  },
     {
         id: 'reports',
         title: 'Laporan',
@@ -94,7 +116,7 @@ export const tabs = [
 export const generationOptions = [
     { id: 'auto', title: 'Otomatis', icon: '🤖', description: 'Generate otomatis sesuai aturan' },
     { id: 'manual', title: 'Manual', icon: '✋', description: 'Isi jadwal secara manual' },
-    { id: 'hybrid', title: 'Hybrid', icon: '⚖️', description: 'Manual lalu auto-fill' }
+    //{ id: 'hybrid', title: 'Hybrid', icon: '⚖️', description: 'Manual lalu auto-fill' }
 ];
 export const autoSubOptions = [
     { id: 'daily', title: 'Per Hari', description: 'Generate harian' },
@@ -119,4 +141,4 @@ export const generateCalendarHeader = (month, year) => {
     return result;
 };
 
-export const steps = ['Informasi Pribadi', 'Informasi Toko', 'Keamanan'];
+export const steps = ['NIK', 'Informasi Pribadi', 'Toko & Keamanan'];

@@ -31,6 +31,65 @@ const ScheduleGenerator = ({ onClose }) => {
         }
     });
 
+    // data tanggal pekan otomatis 
+
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // default ke bulan sekarang
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // default ke tahun sekarang
+    const [selectedWeek, setSelectedWeek] = useState(1); // default ke minggu 1
+    const [weekDates, setWeekDates] = useState('');
+
+// Fungsi untuk menghitung tanggal mulai dan akhir minggu
+const getDatesFromWeek = (bulan, tahun, pekan) => {
+    const firstDayOfMonth = new Date(tahun, bulan - 1, 1); // bulan dimulai dari 0
+    const firstDayOfWeek = firstDayOfMonth.getDate() - firstDayOfMonth.getDay() + (pekan - 1) * 7;
+    
+    const startDate = new Date(tahun, bulan - 1, firstDayOfWeek);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    // Pastikan tanggal mulai tidak lebih dari bulan yang dipilih
+    if (startDate.getMonth() + 1 !== bulan) {
+        startDate.setDate(1); // set ke tanggal 1 bulan yang dipilih
+    }
+
+    // Pastikan tanggal akhir tidak melebihi bulan yang dipilih
+    if (endDate.getMonth() + 1 !== bulan) {
+        endDate.setMonth(bulan - 1); // set ke akhir bulan yang dipilih
+        endDate.setDate(new Date(tahun, bulan, 0).getDate()); // set ke tanggal terakhir bulan yang dipilih
+    }
+
+    return { startDate, endDate };
+};
+
+    // Fungsi untuk menghitung tanggal minggu dan menampilkannya
+    const calculateWeekDates = (month, year, week) => {
+        if (month && year && week) {
+            const { startDate, endDate } = getDatesFromWeek(month, year, week);
+            setWeekDates(`${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleString('id-ID', { month: 'long' })}`);
+        }
+    };
+
+    // Handler untuk perubahan bulan, tahun, dan minggu
+    const handleMonthChange = (e) => {
+        const monthValue = e.target.value;
+        setSelectedMonth(monthValue);  // Update bulan yang dipilih
+        calculateWeekDates(monthValue, selectedYear, selectedWeek);  // Hitung ulang tanggal minggu
+    };
+
+    const handleYearChange = (e) => {
+        const yearValue = e.target.value;
+        setSelectedYear(yearValue);  // Update tahun yang dipilih
+        calculateWeekDates(selectedMonth, yearValue, selectedWeek);  // Hitung ulang tanggal minggu
+    };
+
+    const handleWeekChange = (e) => {
+        const weekValue = e.target.value;
+        setSelectedWeek(weekValue);  // Update minggu yang dipilih
+        calculateWeekDates(selectedMonth, selectedYear, weekValue);  // Hitung ulang tanggal minggu
+    };
+
+    // sampai sini tanggal otomatis
+
     const [loadingStores, setLoadingStores] = useState(false);
     const [stores, setStores] = useState([]);
     const [selectedStore, setSelectedStore] = useState(1);
@@ -309,12 +368,11 @@ const ScheduleGenerator = ({ onClose }) => {
                         year={year}
                         onChange={setManualSchedules}
                     />
-                    
                 </>
             )}
 
             {/* Sub Pilihan Otomatis */}
-            {/*['auto', 'hybrid'].includes(generationType) && (
+            {['auto', 'hybrid'].includes(generationType) && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-3">Pilih Tipe {generationType === 'auto' ? 'Otomatis' : 'Hybrid'}:</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -334,7 +392,7 @@ const ScheduleGenerator = ({ onClose }) => {
                         ))}
                     </div>
                 </div>
-            )*/}
+            )}
 
             {/* Bulan dan Tahun untuk monthly, weekly, atau manual */}
             {(autoSubType === 'monthly' || autoSubType === 'weekly' || generationType !== 'auto') && (
@@ -358,11 +416,12 @@ const ScheduleGenerator = ({ onClose }) => {
                             <>
                                 <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">Minggu</label>
                                 <select
-                                    {...register('weekOfMonth', { required: 'Minggu harus dipilih' })}
+                                    value={selectedWeek}
+                                    onChange={handleWeekChange}
                                     className="w-full px-3 py-2 border rounded-lg"
                                 >
-                                    {[1, 2, 3, 4, 5].map(n => (
-                                        <option key={n} value={n}>Minggu {n}</option>
+                                    {[1, 2, 3, 4, 5, 6].map(n => (
+                                        <option key={n} value={n}>Pekan {n}</option>
                                     ))}
                                 </select>
                                 {errors.weekOfMonth && <p className="text-sm text-red-600">{errors.weekOfMonth.message}</p>}
@@ -379,19 +438,16 @@ const ScheduleGenerator = ({ onClose }) => {
                         />
                         {errors.year && <p className="text-sm text-red-600">{errors.year.message}</p>}
 
-                        {/* Pilihan tanggal dalam minggu (1-5) hanya untuk weekly */}
-                        {autoSubType === 'weekly' && (
+                        {/* Tampilkan Tanggal otomatis */}
+                        {autoSubType === 'weekly' && weekDates && (
                             <>
-                                <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">Tanggal (Minggu 1: Tanggal 1-5)</label>
-                                <select
-                                    {...register('dayOfWeekInWeek', { required: 'Tanggal harus dipilih' })}
-                                    className="w-full px-3 py-2 border rounded-lg"
-                                >
-                                    {[1, 2, 3, 4, 5].map(n => (
-                                        <option key={n} value={n}>{n}</option>
-                                    ))}
-                                </select>
-                                {errors.dayOfWeekInWeek && <p className="text-sm text-red-600">{errors.dayOfWeekInWeek.message}</p>}
+                                <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">Tanggal</label>
+                                <input
+                                    type="text"
+                                    value={weekDates}
+                                    disabled
+                                    className="w-full px-3 py-2 border rounded-lg bg-gray-100"
+                                />
                             </>
                         )}
                     </div>
@@ -483,7 +539,6 @@ const ScheduleGenerator = ({ onClose }) => {
                     </div>
                 </div>
             )}
-            
 
             <div className="flex gap-4 justify-end mt-6">
                 <button

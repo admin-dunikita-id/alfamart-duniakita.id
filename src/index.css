@@ -34,3 +34,34 @@ body {
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
+
+@media print {
+  @page {
+    size: A4 landscape; /* Cetak otomatis landscape A4 */
+    margin: 1cm; /* Biar ada jarak tepi */
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact; /* Biar warna tetap muncul */
+    print-color-adjust: exact;
+  }
+
+  button, select, input {
+    display: none !important; /* Tombol & filter ngilang pas print */
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px; /* Kecil biar muat semua */
+  }
+
+  th, td {
+    border: 1px solid #000 !important;
+    padding: 3px;
+    text-align: center;
+  }
+}
+

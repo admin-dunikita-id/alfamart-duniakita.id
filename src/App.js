@@ -4,9 +4,20 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth, ScheduleProvider, SettingsProvider } from '@/context';
+import { AuthProvider, useAuth, ScheduleProvider, SettingsProvider, LeaveRequestProvider, ShiftSwapProvider } from '@/context';
 
-import { DashboardPage, CalendarPage, ActivationSuccess, SetPassword, ForgotPassword, SetNewPassword } from '@/pages';
+// tambahan halaman dari App.jsx
+import LeaveRequestsPage from '@/components/dashboard/LeaveRequestsPage';
+import ShiftSwapPage from '@/components/dashboard/ShiftSwapPage';
+
+import {
+    DashboardPage,
+    CalendarPage,
+    ActivationSuccess,
+    SetPassword,
+    ForgotPassword,
+    SetNewPassword
+} from '@/pages';
 
 import AuthPage from '@/components/auth/AuthPage';
 import Navbar from '@/components/layout/Navbar';
@@ -57,10 +68,18 @@ function AppContent() {
                                 <div className="min-h-screen bg-gray-50">
                                     <Navbar />
                                     <main className="max-w-7xl mx-auto relative overflow-visible">
-                                        <Routes>
-                                            <Route path="/dashboard" element={<DashboardPage />} />
-                                            <Route path="/calendar" element={<CalendarPage />} />
-                                        </Routes>
+                                        <LeaveRequestProvider>
+                                            <ShiftSwapProvider>
+                                                <Routes>
+                                                    <Route path="/dashboard" element={<DashboardPage />} />
+                                                    <Route path="/calendar" element={<CalendarPage />} />
+
+                                                    {/* route tambahan dari App.jsx */}
+                                                    <Route path="/leave" element={<LeaveRequestsPage />} />
+                                                    <Route path="/shift-swap" element={<ShiftSwapPage />} />
+                                                </Routes>
+                                            </ShiftSwapProvider>
+                                        </LeaveRequestProvider>
                                     </main>
                                 </div>
                             }

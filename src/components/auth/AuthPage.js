@@ -52,7 +52,7 @@ const AuthPage = () => {
                         <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-lg p-4">
                             <div className="text-2xl mb-2">📱</div>
                             <h3 className="font-semibold mb-1">Real-time</h3>
-                            <p className="opacity-80">Notifikasi WhatsApp instan</p>
+                            <p className="opacity-80">Notifikasi Gmail instan</p>
                         </div>
                         <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-lg p-4">
                             <div className="text-2xl mb-2">📊</div>

@@ -3,7 +3,7 @@ import { Input } from './ui/input';
 import Skeleton from 'react-loading-skeleton';
 import toast from 'react-hot-toast';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { PencilIcon, TrashIcon, DocumentIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import Swal from 'sweetalert2';
 import { useAuth, useEmployees } from '@/context';
@@ -132,21 +132,119 @@ const EmployeeManagement = () => {
                 />
             </div>
 
-            {/* Tombol Tambah */}
-            <div className="flex justify-end mb-4">
-                <button
-                onClick={() => {
-                    setEditing(null);
-                    setForm({ store_id: '', name: '', nik: '', gender: '', email: '', phone: '', status: '' });
-                    setShowModal(true);
-                }}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200"
-                >
-                <DocumentIcon className="w-5 h-5" /> {/* Ikon Document Add */}
-                Tambah Karyawan
-                </button>
-            </div>
-            
+            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl shadow-lg space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {/* Store select */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">Toko</label>
+                        <select
+                            value={form.store_id}
+                            onChange={(e) => setForm({ ...form, store_id: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            required
+                        >
+                            <option value="">Pilih Toko</option>
+                            {stores.map(store => (
+                                <option key={store.id} value={store.id}>
+                                    {store.store_name} ({store.store_code})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Nama */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">Nama</label>
+                        <input
+                            type="text"
+                            placeholder="Masukkan nama"
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            required
+                        />
+                    </div>
+
+                    {/* Email */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">Email</label>
+                        <input
+                            type="email"
+                            placeholder="Masukkan email"
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            required
+                        />
+                    </div>
+
+                    {/* No. HP */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">No. HP</label>
+                        <input
+                            type="text"
+                            placeholder="Masukkan nomor HP"
+                            value={form.phone}
+                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                    </div>
+
+                    {/* NIK */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">NIK</label>
+                        <input
+                            type="text"
+                            placeholder="Masukkan NIK"
+                            value={form.nik}
+                            onChange={(e) => setForm({ ...form, nik: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            required
+                        />
+                    </div>
+
+                    {/* Gender */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">Gender</label>
+                        <select
+                            value={form.gender}
+                            onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        >
+                            <option value="">Pilih Gender</option>
+                            <option value="male">Laki-laki</option>
+                            <option value="female">Perempuan</option>
+                        </select>
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex flex-col">
+                        <label className="mb-1 text-sm font-medium text-gray-700">Status</label>
+                        <select
+                            value={form.status}
+                            onChange={(e) => setForm({ ...form, status: e.target.value })}
+                            className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            required
+                        >
+                            <option value="">Pilih Status</option>
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Nonaktif</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Tombol Submit */}
+                <div className="text-right">
+                    <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200"
+                        disabled={submitting}
+                    >
+                        {submitting ? 'Menyimpan...' : editing ? 'Update' : 'Tambah'} Karyawan
+                    </button>
+                </div>
+            </form>
+
             {loading ? (
                 <div className="space-y-2">
                     {[...Array(5)].map((_, i) => (
@@ -202,8 +300,6 @@ const EmployeeManagement = () => {
                             ))}
                         </tbody>
                     </table>
-
-                    {/* Pagination */}
                     <div className="flex justify-center items-center gap-2 mt-4">
                         {/* Prev Button */}
                         <button
@@ -239,124 +335,6 @@ const EmployeeManagement = () => {
                     </div>
                 </div>
             )}
-
-            {/* Modal Form */}
-                {showModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-                    <div className="bg-white p-6 w-full max-w-3xl rounded-xl shadow-lg relative">
-                        <button onClick={() => { setShowModal(false); setEditing(null); }} className="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl">✕</button>
-                        <h3 className="text-xl font-semibold mb-4">{editing ? 'Edit Karyawan' : 'Tambah Karyawan'}</h3>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                            {/* Toko */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">Toko</label>
-                                <select value={form.store_id} 
-                                    onChange={(e) => setForm({ ...form, store_id: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    required
-                                >
-                                    <option value="">Pilih Toko</option>
-                                    {stores.map(s => (
-                                        <option key={s.id} value={s.id}>
-                                            {s.store_name} ({s.store_code})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Nama */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">Nama</label>
-                                <input
-                                    type="text"
-                                    placeholder="Masukkan nama"
-                                    value={form.name} 
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    required
-                                />
-                            </div>
-
-                            {/* Email */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">Email</label>
-                                <input
-                                    type="email"
-                                    placeholder="Masukkan email"
-                                    value={form.email} 
-                                    onChange={(e) => setForm({ ...form, email: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    required 
-                                />
-                            </div>
-
-                            {/* Nomor Hp */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">No. HP</label>
-                                <input 
-                                    type="text"
-                                    placeholder="Masukkan nomor HP"
-                                    value={form.phone} 
-                                    onChange={(e) => setForm({ ...form, phone: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                />
-                            </div>
-
-                            {/* NIK */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">NIK</label>
-                                <input 
-                                    type="text"
-                                    placeholder="Masukkan NIK"
-                                    value={form.nik} 
-                                    onChange={(e) => setForm({ ...form, nik: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    required 
-                                />
-                            </div>
-
-                            {/* Gender */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">Gender</label>
-                                <select 
-                                    value={form.gender} 
-                                    onChange={(e) => setForm({ ...form, gender: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    required
-                                >
-                                    <option value="">Pilih Gender</option>
-                                    <option value="male">Laki-laki</option>
-                                    <option value="female">Perempuan</option>
-                                </select>
-                            </div>
-
-                            {/* Status */}
-                            <div className="flex flex-col">
-                                <label className="mb-1 text-sm font-medium text-gray-700">Status</label>
-                                <select 
-                                    value={form.status} 
-                                    onChange={(e) => setForm({ ...form, status: e.target.value })} 
-                                    className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    required
-                                >
-                                    <option value="">Pilih Status</option>
-                                    <option value="active">Aktif</option>
-                                    <option value="inactive">Nonaktif</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="text-right pt-4">
-                            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg" 
-                                disabled={submitting}>{submitting ? 'Menyimpan...' : editing ? 'Update' : 'Tambah'}
-                            </button>
-                        </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
             {submitting && (
                 <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
                     <div className="bg-white px-6 py-4 rounded shadow-lg text-center">
