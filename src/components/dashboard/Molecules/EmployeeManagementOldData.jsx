@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Input } from './ui/input';
+import { Input } from './ui/Input';
 import Skeleton from 'react-loading-skeleton';
 import toast from 'react-hot-toast';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -28,13 +28,13 @@ const EmployeeManagement = () => {
     const [showModal, setShowModal] = useState(false);
     // Tambahkan store_id di form
     const [form, setForm] = useState({
-    store_id: '',
-    name: '',
-    nik: '',
-    gender: '',
-    email: '',
-    phone: '',
-    status: 'Pilih Status' // atau default yang sesuai
+        store_id: '',
+        name: '',
+        nik: '',
+        gender: '',
+        email: '',
+        phone: '',
+        status: 'Pilih Status' // atau default yang sesuai
     });
     const { user } = useAuth();
 
