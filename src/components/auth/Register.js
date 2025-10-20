@@ -25,7 +25,8 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
         clearErrors,
         getValues,
         trigger,
-        setValue
+        setValue,
+        watch
     } = useForm();
 
     const nextStep = async () => {
@@ -91,6 +92,22 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
         fetchStores();
     }, [scheduleAPI]);
 
+// Konstanta & watch
+const NIK_LEN = 8;
+const nikVal = watch('nik') || '';
+const nikLen = nikVal.length;
+
+// Handler input: izinkan lewat 8 → toast + potong ke 8
+const handleNikInput = (e) => {
+  let val = (e.target.value || '').replace(/\D/g, ''); // hanya angka
+  if (val.length > NIK_LEN) {
+    toast.error(`NIK maksimal ${NIK_LEN} digit`);
+    val = val.slice(0, NIK_LEN);
+  }
+  e.target.value = val; // sinkron ke DOM
+  setValue('nik', val, { shouldDirty: true, shouldTouch: true }); // sinkron ke RHF
+};
+
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md mx-auto">
@@ -130,12 +147,37 @@ const RegisterStepper = ({ onSwitchToLogin }) => {
                     {step === 0 && (
                         <>
                             <div>
-                                <label>NIK</label>
+                                <label>NIK</label> 
                                 <input
-                                    {...register('nik', { required: 'NIK harus diisi' })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    disabled={nikValidated}
+                                id="username"
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="username"
+                                placeholder="Masukkan NIK"
+                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none ${
+                                    nikLen < NIK_LEN
+                                    ? 'border-red-300 focus:ring-2 focus:ring-red-500'
+                                    : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                                }`}
+                                {...register('nik', {
+                                    required: 'NIK harus diisi',
+                                    validate: (v) => (/^\d{8}$/.test(v || '') ? true : 'NIK harus tepat 8 digit angka'),
+                                })}
+                                onInput={handleNikInput}
+                                onKeyDown={(e) => {
+                                    // opsional: cegah char non-angka; lebih aman tetap ada
+                                    const blocked = ['e', 'E', '+', '-', '.', ','];
+                                    if (blocked.includes(e.key)) e.preventDefault();
+                                }}
                                 />
+
+                                {/* Helper dinamis */}
+                                <div className="mt-1 flex items-center justify-end text-xs">
+                                <span className={nikLen === NIK_LEN ? 'text-green-600' : 'text-gray-500'}>
+                                    {nikLen}/{NIK_LEN} digit
+                                </span>
+                                </div>
+
                                 {errors.nik && <p className="text-red-600">{errors.nik.message}</p>}
                             </div>
                             {!nikValidated && (

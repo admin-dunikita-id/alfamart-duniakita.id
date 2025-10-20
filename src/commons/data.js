@@ -21,7 +21,7 @@ export const cards = [
         icon: CalendarDaysIcon,
         gradient: 'from-blue-500 to-purple-600',
         component: ScheduleGenerator,
-        roles: ['admin', 'cos', 'acos']
+        roles: ['admin', 'ac', 'cos', 'acos']
     },
     {
         id: 'schedule',
@@ -30,7 +30,7 @@ export const cards = [
         icon: CalendarDaysIcon,
         gradient: 'from-green-500 to-teal-600',
         component: ScheduleViewer,
-        roles: ['admin', 'acos', 'cos', 'employee']
+        roles: ['admin', 'ac', 'cos', 'acos', 'employee']
     },
     {
         id: 'calendar',
@@ -39,7 +39,7 @@ export const cards = [
         icon: CalendarDaysIcon,
         gradient: 'from-purple-500 to-pink-600',
         component: null,
-        roles: ['admin', 'acos', 'cos', 'employee']
+        roles: ['admin', 'ac', 'cos', 'acos', 'employee']
     },
     {
         id: 'employees',
@@ -57,7 +57,7 @@ export const cards = [
     icon: ClipboardDocumentListIcon,
     gradient: 'from-sky-500 to-cyan-500',
     component: LeaveRequestsPage,
-    roles: ['admin', 'acos', 'cos', 'employee']
+    roles: ['admin', 'ac', 'cos', 'acos', 'employee']
   },
   {
     id: 'shift-swap',
@@ -66,7 +66,7 @@ export const cards = [
     icon: ArrowsRightLeftIcon,
     gradient: 'from-rose-500 to-red-500',
     component: ShiftSwapPage,
-    roles: ['admin', 'acos', 'cos', 'employee']
+    roles: ['admin', 'ac', 'cos', 'acos', 'employee']
   },
     {
         id: 'reports',
@@ -75,7 +75,7 @@ export const cards = [
         icon: ChartBarIcon,
         gradient: 'from-yellow-500 to-orange-600',
         component: ReportDashboard,
-        roles: ['admin', 'cos', 'acos']
+        roles: ['admin', 'ac', 'cos', 'acos']
     },
     {
         id: 'settings',
@@ -104,13 +104,23 @@ export const tabs = [
         label: 'Daftar Shift',
         icon: <CalendarDaysIcon className="w-4 h-4" />,
     },
+    {   id: 'roles',
+        label: 'Role & Permission', 
+        icon: <ShieldCheckIcon className="h-5 w-5" /> 
+    }, 
     {
         id: 'reset',
         label: 'Reset Jadwal',
         icon: <ArrowPathIcon className="w-4 h-4" />,
     },
-    { id: 'change-password', label: 'Ganti Password', icon: <KeyIcon className="h-5 w-5" /> },
-    { id: 'reset-password', label: 'Reset Password Karyawan', icon: <ShieldCheckIcon className="h-5 w-5" /> },
+    {   id: 'change-password',
+        label: 'Ganti Password',
+        icon: <KeyIcon className="h-5 w-5" /> 
+    },
+    {   id: 'reset-password',
+        label: 'Reset Password Karyawan', 
+        icon: <ShieldCheckIcon className="h-5 w-5" /> 
+    },
 ];
 
 export const generationOptions = [

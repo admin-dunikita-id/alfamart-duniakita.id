@@ -14,16 +14,16 @@ export const useSchedule = () => {
     return context;
 };
 
-//export const scheduleAPI = {
-//  getShiftSummary: (params = {}) =>
-//    api.get('/reports/shift-summary', { params }).then(r => r.data),
+export const scheduleAPI = {
+  getShiftSummary: (params = {}) =>
+    api.get('/reports/shift-summary', { params }).then(r => r.data),
     
-//  getLeaveSummary: (params = {}) =>
-//    api.get('/reports/leave-summary', { params }).then(r => r.data),
+  getLeaveSummary: (params = {}) =>
+    api.get('/reports/leave-summary', { params }).then(r => r.data),
 
-//  getSwapSummary: (params = {}) =>
-//    api.get('/reports/swap-summary', { params }).then(r => r.data),
-//};
+  getSwapSummary: (params = {}) =>
+    api.get('/reports/swap-summary', { params }).then(r => r.data),
+};
 
 // API Base URL
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -232,23 +232,21 @@ export const ScheduleProvider = ({ children }) => {
             return response.json();
         },
 
-getShiftSummary: async (params = {}) => {
-  const token = localStorage.getItem('token');
-  const qs = new URLSearchParams(
-    Object.entries(params).reduce((o,[k,v]) => {
-      if (v !== undefined && v !== null && String(v).trim() !== '') o[k]=v;
-      return o;
-    }, {})
-  ).toString();
-  const url = `${API_BASE_URL}/reports/shift-summary${qs ? `?${qs}` : ''}`;
-  const res = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-  });
-  if (!res.ok) throw new Error('Gagal fetch laporan shift');
-  return res.json();
-},
+        getShiftSummary: async () => {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/reports/shift-summary`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                }
+            });
 
+            if (!response.ok) {
+                throw new Error('Gagal fetch laporan shift');
+            }
 
+            return response.json();
+        },
 
 
         saveManualSchedule: async (payload) => {

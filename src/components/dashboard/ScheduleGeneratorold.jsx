@@ -377,7 +377,6 @@ const ScheduleGenerator = ({ onClose }) => {
                     searchName={searchName}
                     focusedEmployeeId={focusedEmployeeId}
                     onFocusChange={setFocusedEmployeeId}
-                    excludedRoles={['admin', 'ac']}
                 />
             )}
 
@@ -394,7 +393,6 @@ const ScheduleGenerator = ({ onClose }) => {
                         searchName={searchName}
                         focusedEmployeeId={focusedEmployeeId}
                         onFocusChange={setFocusedEmployeeId}
-                        excludedRoles={['admin', 'ac']}
                     />
                     
                 </>

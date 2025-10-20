@@ -39,33 +39,6 @@ function StatusBadge({ status }) {
   );
 }
 
-// Berdasar rules approve kamu:
-// - Admin: semua (kalau admin yang approve, backend idealnya mengisi namanya)
-// - AC: pengajuan dari COS
-// - COS: pengajuan dari Employee & ACOS
-const inferApproverRoleFromRequester = (employeeRole) => {
-  const r = String(employeeRole || "").toLowerCase();
-  if (r === "cos") return "AC";
-  if (r === "employee" || r === "acos") return "COS";
-  return "Approver";
-};
-
-// Ambil nama & role approver dari data; kalau kosong -> infer dari pemohon
-const getApproverName = (row) =>
-  pick(row.rejected_by_name, row.approved_by_name, row.approvedBy?.name, row.approver?.name);
-
-const getApproverRole = (row) =>
-  pick(row.rejected_by_role, row.approved_by_role, row.approvedBy?.role, row.approver?.role) ||
-  inferApproverRoleFromRequester(row.employee?.role);
-
-// Convenience: string untuk ditaruh di label
-const approverDisplay = (row) => {
-  const name = getApproverName(row);
-  const role = (getApproverRole(row) || "").toString().toUpperCase();
-  // Prioritaskan nama jika ada, kalau tidak pakai role yg di-infer
-  return name ? name : (role || "APPROVER");
-};
-
 /* ===== Helpers agar seragam dengan Tukar Shift ===== */
 const pick = (...vals) => vals.find(v => v !== undefined && v !== null && String(v).trim() !== "");
 
@@ -85,7 +58,7 @@ const showFullReason = (title, reason) => {
 };
 
 // maxWidthClass = batas lebar supaya truncate bekerja di <table>
-const ReasonInline = ({ label, reason, color = "text-gray-600", limit = 20, maxWidthClass = "max-w-[240px]" }) => {
+const ReasonInline = ({ label, reason, color = "text-gray-600", limit = 14, maxWidthClass = "max-w-[240px]" }) => {
   if (!reason) return null;
   const s = String(reason).trim();
   const truncated = s.length > limit;
@@ -271,7 +244,7 @@ export default function LeaveRequestsPage() {
     "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md";
 
   return (
-    <div className="p-9">
+    <div className="p-6">
       {error && <p className="text-red-500 mb-2">{error}</p>}
       {successMessage && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-2">
@@ -322,19 +295,16 @@ export default function LeaveRequestsPage() {
           ) : list.length > 0 ? (
             list.map((r) => {
               const rowLoad = loadingRows[r.id] || {};
-              // hitung status sekali
-              const isPending = String(r.status).toLowerCase() === "pending";
-              const isApproved = String(r.status).toLowerCase() === "approved";
-              const isRejected = String(r.status).toLowerCase() === "rejected";
-              const isCanceled = String(r.status).toLowerCase() === "canceled";
-
-              // hitung jumlah tombol utk atur limit
+              // Hitung tombol yang tampil di kolom Aksi
               const actionsCount =
-                (canApprove(r) ? 2 : 0) +
-                (canCancel(r) ? 1 : 0) +
-                (canDelete(r) ? 1 : 0);
+                (canApprove(r) ? 2 : 0) + // Approve + Reject
+                (canCancel(r) ? 1 : 0) +  // Batalkan
+                (canDelete(r) ? 1 : 0);   // Hapus (admin)
 
-              const reasonMaxW   = isApproved ? "max-w-[380px]" : (actionsCount <= 1 ? "max-w-[300px]" : "max-w-[240px]");
+              const reasonLimit = actionsCount <= 1 ? 20 : 10;
+
+              // Lebar maksimum baris alasan supaya tetap 1 baris (sedikit lebih lega saat tombolnya 1)
+              const reasonMaxW = actionsCount <= 1 ? "max-w-[300px]" : "max-w-[240px]";
 
               const hasActions = canApprove(r) || canCancel(r) || canDelete();
 
@@ -350,50 +320,28 @@ export default function LeaveRequestsPage() {
                   <td className="border px-2 py-1">
                     <div className="flex flex-col items-start gap-1">
                       <StatusBadge status={r.status} />
-
-                        {/* Pending */}
-                        {isPending && (
-                          <ReasonInline
-                            label={`Pengajuan ${r.type} Oleh ${r.employee?.name}`}
-                            reason={`Menunggu Persetujuan ${approverDisplay(r)}`}
-                            color="text-yellow-600"
-                            limit={10}
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
-
-                        {/* APPROVED */}
-                        {isApproved && (
-                          <ReasonInline
-                            label={`Pengajuan ${r.type} Oleh ${r.employee?.name}`} 
-                            reason={`Disetujui oleh ${approverDisplay(r)}`}             
-                            color="text-green-600"
-                            limit={11}
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
-
-                        {/* Rejected */}
-                        {isRejected && (r.reject_reason) && (
-                          <ReasonInline
-                            label={`Pengajuan ${r.type} Oleh ${r.employee?.name}`}
-                            reason={`Ditolak oleh ${approverDisplay(r)} : ${r.reject_reason || "-"}`}
-                            color="text-red-600"
-                            limit={9} 
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
-
-                        {/* Canceled */}
-                        {isCanceled && (r.cancel_reason) && (
-                          <ReasonInline
-                            label={`Pengajuan ${r.type} oleh ${r.employee?.name}`} 
-                            reason={`Dibatalkan oleh ${r.employee?.name} : ${r.cancel_reason || "-"}`}
-                            color="text-gray-600"
-                            limit={12} 
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
+                  
+                      {/* REJECTED → Ditolak oleh {Approver}: alasan… */}
+                      {String(r.status).toLowerCase() === "rejected" && (r.reject_reason || r.note) && (
+                        <ReasonInline
+                          label={`Ditolak oleh ${r.rejected_by_name || r.approver?.name || "Approver"}`}
+                          reason={r.reject_reason || r.note}
+                          color="text-red-600"
+                          limit={reasonLimit}
+                          maxWidthClass={reasonMaxW}
+                        />
+                      )}
+                  
+                      {/* CANCELED → Dibatalkan oleh {Nama}: alasan… */}
+                      {String(r.status).toLowerCase() === "canceled" && (r.cancel_reason || r.note) && (
+                        <ReasonInline
+                          label={`Dibatalkan oleh ${r.canceled_by_name || r.employee?.name || "Pemohon"}`}
+                          reason={r.cancel_reason || r.note}
+                          color="text-gray-600"
+                          limit={reasonLimit}
+                          maxWidthClass={reasonMaxW}
+                        />
+                      )}
                     </div>
                   </td>
 

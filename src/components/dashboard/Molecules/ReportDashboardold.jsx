@@ -69,34 +69,47 @@ const buildMonthDates = (y, m, clipStart, clipEnd) => {
 
   const normStatus = (s) => String(s || "").toLowerCase();
 
-  const roleLabel = (r = "") => {
-    const x = String(r || "").toLowerCase();
-    if (x === "admin") return "Admin";
-    if (x === "cos") return "COS";
-    if (x === "ac" || x === "acos") return "ACOS";
-    if (x === "employee" || x === "karyawan") return "Employee";
-    return x ? x.charAt(0).toUpperCase() + x.slice(1) : "Approver";
-  };
+  const role = String(currentUser?.role || '').toLowerCase();
+const canSelectAnyStore = role === 'admin' || role === 'ac';
 
-  // NEW: cek role boleh pilih semua store atau tidak
-  const canSelectAnyStore = useMemo(() => {
-    const r = String(user?.role || '').toLowerCase();
-    return r === 'admin' || r === 'ac';
-  }, [user]);
+// untuk COS/ACOS ambil store yg terkait user (mis. currentUser.store_id & store_name)
+const myStoreId = currentUser?.store_id ?? '';
+const myStoreLabel = currentUser?.store?.store_name || currentUser?.store_name || '-';
 
-  // NEW: daftar store yang ditampilkan di <select> sesuai role
-  const selectableStores = useMemo(() => {
-    if (!stores?.length) return [];
-    if (canSelectAnyStore) return stores;
+const [stores, setStores] = React.useState([]);
+const [loadingStores, setLoadingStores] = React.useState(false);
 
-    // COS/ACOS → hanya store yang terkait
-    const ids = Array.isArray(user?.store_ids) && user.store_ids.length
-      ? new Set(user.store_ids.map(Number))
-      : (user?.store_id ? new Set([Number(user.store_id)]) : new Set());
+// selectedStoreId:
+// - admin/ac: default kosong = "Semua Store"
+// - cos/acos: paksa ke store-nya sendiri
+const [selectedStoreId, setSelectedStoreId] = React.useState(
+  canSelectAnyStore ? '' : String(myStoreId || '')
+);
 
-    if (!ids.size) return [];
-    return stores.filter(s => ids.has(Number(s.id)));
-  }, [stores, user, canSelectAnyStore]);
+// load stores HANYA untuk admin/ac
+React.useEffect(() => {
+  if (!canSelectAnyStore) return;
+  let alive = true;
+  (async () => {
+    try {
+      setLoadingStores(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/stores`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      const data = await res.json();
+      if (alive) setStores(Array.isArray(data) ? data : (data?.data || []));
+    } finally {
+      if (alive) setLoadingStores(false);
+    }
+  })();
+  return () => { alive = false; };
+}, [canSelectAnyStore]);
+
+// kalau role berubah (atau user ganti), sinkronkan selectedStoreId
+React.useEffect(() => {
+  setSelectedStoreId(canSelectAnyStore ? '' : String(myStoreId || ''));
+}, [canSelectAnyStore, myStoreId]);
 
     // --- RESET FILTERS ---
   const resetFilters = () => {
@@ -541,6 +554,7 @@ const buildParams = () => {
       // ketika tanggal belum dipilih sama sekali, biarkan semua (atau bisa default bulan berjalan)
       // di sini kita tetap fetch dan tidak memaksa tanggal default.
       try {
+
         // SHIFT
 let shiftSum = null;
 
@@ -783,24 +797,24 @@ if (isBadSummary(shiftSum)) {
   }), [swap]);
 
   // ====== EXPORT ======
-  const exportShiftExcel = () => {
-    const rows = (shift?.per_employee || []).map(it => ({
-      NIK: it.nik,
-      Nama: it.name || '-',
-      Pagi: it.pagi ?? 0,
-      Siang: it.siang ?? 0,
-      Malam: it.malam ?? 0,
-      Off: it.off ?? 0,
-      'Cuti / Izin / Sakit': it.none ?? 0,
-      'Cuti / Izin / Sakit': it.total_shifts ?? ((it.pagi||0)+(it.siang||0)+(it.malam||0)), // fallback aman
-    }));
+const exportShiftExcel = () => {
+  const rows = (shift?.per_employee || []).map(it => ({
+    NIK: it.nik,
+    Nama: it.name || '-',
+    Pagi: it.pagi ?? 0,
+    Siang: it.siang ?? 0,
+    Malam: it.malam ?? 0,
+    Off: it.off ?? 0,
+    'Cuti / Izin / Sakit': it.none ?? 0, // <-- ambil dari backend
+    'Total Shift': it.total_shifts ?? ((it.pagi||0) + (it.siang||0) + (it.malam||0)),
+  }));
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Shift - Per Employee');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(shift?.per_date || []),  'Shift - Per Date');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(shift?.per_store || []), 'Shift - Per Store');
-    XLSX.writeFile(wb, 'shift-report.xlsx');
-  };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Shift - Per Employee');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(shift?.per_date || []),  'Shift - Per Date');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(shift?.per_store || []), 'Shift - Per Store');
+  XLSX.writeFile(wb, 'shift-report.xlsx');
+};
 
   const exportLeaveExcel = () => {
     const wb = XLSX.utils.book_new();
@@ -959,16 +973,16 @@ useEffect(() => {
           {/* Store: dropdown untuk Admin/AC, label untuk COS/ACOS */}
           <div className="md:col-span-3">
             <label className="block text-xs font-medium text-gray-600 mb-1">Nama Store</label>
+            // Saat render filter
             {canSelectAnyStore ? (
               <select
                 value={selectedStoreId}
                 onChange={(e) => setSelectedStoreId(e.target.value)}
                 className="w-full border px-3 py-2 rounded-md text-sm"
                 disabled={loadingStores}
-                title="Pilih Store"
               >
                 <option value="">{loadingStores ? 'Memuat Store…' : 'Semua Store'}</option>
-                {!loadingStores && (selectableStores || stores).map((s) => (
+                {(stores || []).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.store_name}
                   </option>

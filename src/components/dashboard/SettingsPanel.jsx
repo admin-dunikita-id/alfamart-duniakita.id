@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { StoreSettings, ShiftSettings, ResetSchedule, ChangePassword, ResetEmployeePassword } from '@/components/dashboard/Molecules/settings';
+import { StoreSettings, ShiftSettings, ResetSchedule, 
+    RoleSettings, 
+    ChangePassword, ResetEmployeePassword } from '@/components/dashboard/Molecules/settings';
 import { tabs } from '@/commons';
 
 const tabComponents = {
     store: <StoreSettings />,
     shifts: <ShiftSettings />,
     reset: <ResetSchedule />,
+    roles: <RoleSettings />,
     'change-password': <ChangePassword />,
     'reset-password': <ResetEmployeePassword />,
 };

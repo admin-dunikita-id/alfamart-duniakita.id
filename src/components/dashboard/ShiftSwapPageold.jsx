@@ -74,68 +74,6 @@ function StatusBadge({ status }) {
   );
 }
 
-/* ===== Helpers UI ===== */
-const pick = (...vals) => vals.find(v => v !== undefined && v !== null && String(v).trim() !== "");
-
-const escapeHtml = (str = "") =>
-  String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;")
-             .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-
-const showFullReason = (title, reason) => {
-  if (!reason) return;
-  Swal.fire({
-    icon: "info",
-    title,
-    html: `<div style="text-align:left;white-space:pre-wrap">${escapeHtml(reason)}</div>`,
-    confirmButtonText: "Tutup",
-  });
-};
-
-// maxWidthClass = batas lebar supaya truncate bekerja di <table>
-const ReasonInline = ({ label, reason, color = "text-gray-600", limit = 20, maxWidthClass = "max-w-[240px]" }) => {
-  if (!reason) return null;
-  const s = String(reason).trim();
-  const truncated = s.length > limit;
-  const short = truncated ? s.slice(0, limit - 1) + "…" : s;
-
-  return (
-    <div className={`text-xs ${color} ${maxWidthClass} truncate whitespace-nowrap`}>
-      {label}:{" "}
-      {truncated ? (
-        <span
-          role="button"
-          onClick={() => showFullReason(label, reason)}
-          className="underline decoration-dotted underline-offset-2 hover:decoration-solid cursor-pointer align-middle"
-        >
-          {short}
-        </span>
-      ) : (
-        short
-      )}
-    </div>
-  );
-};
-
-/** Approver display sederhana (tanpa inferApproverRoleFromRequester) */
-function approverDisplay(row) {
-  // Prioritas role dari backend bila ada
-  const role =
-    row?.rejected_by_role ||
-    row?.approved_by_role ||
-    row?.approvedBy?.role ||
-    row?.approver?.role;
-
-  if (role) return String(role).toUpperCase();
-
-  // Fallback: infer dari role requester
-  const reqRole = String(row?.requester?.role || row?.employee?.role || "").toLowerCase();
-  if (reqRole === "employee" || reqRole === "acos") return "COS";
-  if (reqRole === "cos") return "ADMIN";
-
-  return "APPROVER";
-}
-/* ===== End Helpers UI ===== */
-
 export default function ShiftSwapPage() {
   const { user } = useAuth() || {};
   const {
@@ -167,23 +105,9 @@ export default function ShiftSwapPage() {
 
   // Siapa boleh approve tukar shift
   const canApproveSwap = (row, effectivePartnerStatus) => {
-    // Harus masih pending & partner sudah accepted
-    if (normStatus(row.status) !== "pending") return false;
-    if (normStatus(effectivePartnerStatus) !== "accepted") return false;
-
-    // Admin bisa approve semua
-    if (isAdmin) return true;
-
-    // COS: boleh approve Employee/ACOS atau dirinya sendiri
-    if (isCOS) {
-      const reqRole = String(row?.requester?.role || row?.employee?.role || "").toLowerCase();
-      const isReqEmployeeOrAcos = reqRole === "employee" || reqRole === "acos";
-      const isSelf = Number(row?.requester?.id || 0) === Number(user?.id || -1);
-      return isReqEmployeeOrAcos || isSelf;
-    }
-
-    // selain itu: tidak boleh
-    return false;
+    if (row.status !== "pending") return false;
+    if (effectivePartnerStatus !== "accepted") return false;
+    return isAdmin || isCOS;
   };
 
   // === COS approve langsung
@@ -333,33 +257,202 @@ export default function ShiftSwapPage() {
     }
   };
 
-  // --- urutan kelompok seperti di izin/cuti ---
-const STATUS_ORDER = { pending: 1, approved: 2, rejected: 3, canceled: 4 };
+  /*** ===== Helpers alasan (truncate + popup) ===== ***/
 
-// partner: accepted di atas, pending/waiting di tengah, declined/canceled di bawah
-const PARTNER_ORDER = { accepted: 1, pending: 2, waiting: 2, declined: 3, rejected: 3, canceled: 4, "": 5 };
+// Nama approver (utamakan yang paling spesifik)
+const getApproverName = (row) =>
+  pick(
+    row.approved_by_name,         // snake_case
+    row.rejected_by_name,
+    row.approvedBy?.name,         // relasi camelCase
+    row.rejectedBy?.name,
+    row.approver?.name,
+    row.approved_by?.name,        // kalau backend kirim objek nested 'approved_by'
+    row.rejected_by?.name
+  );
 
-const toKey = (v) => String(v || "").toLowerCase();
-
-const cmpSwap = (a, b) => {
-  // status utama
-  const sa = STATUS_ORDER[toKey(a.status)] ?? 99;
-  const sb = STATUS_ORDER[toKey(b.status)] ?? 99;
-  if (sa !== sb) return sa - sb;
-
-  // status partner (pakai shadow kalau ada)
-  const pa = PARTNER_ORDER[toKey(shadowPartnerStatus[a.id] || a.partner_status)] ?? 99;
-  const pb = PARTNER_ORDER[toKey(shadowPartnerStatus[b.id] || b.partner_status)] ?? 99;
-  if (pa !== pb) return pa - pb;
-
-  // tanggal terbaru dulu
-  const da = new Date(a.date || "1970-01-01").getTime();
-  const db = new Date(b.date || "1970-01-01").getTime();
-  return db - da;
+// Role approver (ADMIN/COS)
+const getApproverRole = (row) => {
+  const role =
+    pick(
+      row.approved_by_role,       // snake_case dari resource
+      row.rejected_by_role,
+      row.approvedBy?.role,       // relasi camelCase
+      row.rejectedBy?.role,
+      row.approver?.role,
+      row.approved_by?.role,      // nested object
+      row.rejected_by?.role
+    ) || "approver";
+  return String(role).toUpperCase(); // "ADMIN" | "COS" | "APPROVER"
 };
 
+  // pilih string pertama yang berisi
+  const pick = (...vals) => vals.find(v => v !== undefined && v !== null && String(v).trim() !== "");
+
+  // deteksi apakah penolakan berasal dari partner
+  const isPartnerDeclined = (row, partnerStatus) => {
+    const ps = normStatus(partnerStatus);
+    if (["rejected"].includes(ps)) return true;
+
+    const byRole = String(row.rejected_by_role || row.rejectedByRole || "").toLowerCase();
+    if (byRole === "partner" || byRole === "mitra") return true;
+
+    const byId = row.rejected_by_id ?? row.rejectedById;
+    if (byId && row.partner?.id && Number(byId) === Number(row.partner.id)) return true;
+
+    return false;
+  };
+
+  // ambil alasan partner dengan fallback ke reject_reason bila API gabung
+  const getPartnerReason = (row) =>
+    pick(
+      row.partner_reason,
+      row.partner_note,
+      row.partner_decline_reason,
+      row.partnerDeclineReason,
+      row.note_partner,
+      row.partnerMessage,
+      row.partner_comment,
+      row.partnerNote,
+      row.reject_reason, // fallback penting
+      row.note
+    );
+
+  // potong alasan sampai N karakter (bukan kata)
+  const truncateChars = (text, limit = 10) => {
+    const s = String(text ?? "").trim();
+    const truncated = s.length > limit;
+    return {
+      short: truncated ? s.slice(0, limit) + "..." : s,
+      truncated,
+    };
+  };
+
+  // escape untuk HTML
+  const escapeHtml = (str = "") =>
+    String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  // popup alasan penuh
+  const showReasonPopup = (title, reason) => {
+    Swal.fire({
+      icon: "info",
+      title,
+      html: `<div style="text-align:left;white-space:pre-wrap">${escapeHtml(reason)}</div>`,
+      confirmButtonText: "Tutup",
+    });
+  };
+
+  // komponen baris alasan (truncate + klik)
+const ReasonLine = ({ label, reason, color = "text-gray-600" }) => {
+  if (!reason) return null;
+
+  // reason berupa STRING → potong per-karakter + popup
+  if (typeof reason === "string") {
+    const { short, truncated } = truncateChars(reason, 11);
+    return (
+      <div className={`text-xs ${color}`}>
+        {label ? <span className="font-medium">{label}: </span> : null}
+        {truncated ? (
+          <button
+            type="button"
+            onClick={() => showReasonPopup(label || "", reason)}
+            className="inline whitespace-nowrap underline decoration-dotted underline-offset-2 hover:decoration-solid"
+            title="Klik untuk lihat lengkap"
+          >
+            {short}
+          </button>
+        ) : (
+          <span className="inline whitespace-nowrap">{short}</span>
+        )}
+      </div>
+    );
+  }
+
+  // reason berupa JSX → tampilkan apa adanya (tanpa truncate)
+  return (
+    <div className={`text-xs ${color}`}>
+      {label ? <span className="font-medium">{label}: </span> : null}
+      {reason}
+    </div>
+  );
+};
+
+  // rangkum sumber & teks alasan (prioritas: partner decline > approver reject > requester cancel)
+const getDecisionInfo = (row, partnerStatus) => {
+  const s = normStatus(row.status);
+  const approverName = getApproverName(row);
+  const approverRole = getApproverRole(row); // "ADMIN" | "COS" | "APPROVER"
+
+    // ========== partner decline ==========
+  if (isPartnerDeclined(row, partnerStatus)) {
+    const text = getPartnerReason(row);
+    const by = row.partner?.name
+      ? `Ditolak oleh Partner (${row.partner.name})`
+      : "Ditolak oleh Partner";
+    return { label: by, text, color: "text-red-600" };
+  }
+
+  // ========== pending & waiting ==========
+    if (s === "pending" && (partnerStatus === "waiting" || partnerStatus == null)) {
+      return {
+        label: "Menunggu persetujuan partner",
+        text: row.partner?.name || "-",
+        color: "text-yellow-600", 
+      };
+    }
+
+  // ========== pending & patner : accepted ==========
+  if (s === "pending" && partnerStatus === "accepted") {
+    const approverRole = row.approved_by_role?.toUpperCase() || "COS";
+    return {
+      label: "Menunggu persetujuan Approver",
+      text: `(${approverRole}) - Partner sudah Accepted`,
+      color: "text-yellow-600", // pending tetap kuning
+    };
+  }
+
+  // ========== partner accepted + approver approved =========
+if (s === "approved") {
+  return {
+    label: `Disetujui oleh Approver (${row.approved_by_role?.toUpperCase() || "APPROVER"})`,
+    text: `Tukar shift ${row.requester?.name} dengan ${row.partner?.name} telah disetujui${row.approved_by_name ? ` oleh ${row.approved_by_name}` : ""}`,
+    color: "text-green-600",
+  };
+}
+
+  // ========== hanya approver approved (opsional, tetap) ==========
+  if (s === "approved") {
+    return {
+      label: `Disetujui oleh Approver (${approverRole})`,
+      text: approverName || "-",
+      color: "text-green-600",
+    };
+  }
+
+  // ========== DITOLAK oleh Approver (COS) ==========
+if (s === "rejected") {
+  return {
+    label: `Ditolak oleh Approver (${row.rejected_by_role?.toUpperCase() || "APPROVER"})`,
+    text: row.reject_reason || "-",
+    color: "text-red-600",
+  };
+}
+
+  // ========== DIBATALKAN oleh Requester (Nama) ==========
+  if (s === "canceled") {
+    const by = pick(row.canceled_by_name, row.requester?.name) || "Pemohon";
+    const text = pick(row.cancel_reason, row.note);
+    return { label: `Dibatalkan oleh Requester (${by})`, text, color: "text-gray-600" };
+  }
+
+  return null;
+};
+
+
   const btnBase = "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md";
-  const reasonMaxW = "max-w-[520px] sm:max-w-[600px]";
 
   return (
     <div className="p-6">
@@ -411,35 +504,37 @@ const cmpSwap = (a, b) => {
                 <td colSpan={5} className="text-center p-4 text-gray-500">Loading...</td>
               </tr>
             ) : list.length > 0 ? (
-                [...list].sort(cmpSwap).map((r) => {
-                  const btn = loadingButtons[r.id] || {};
-
-                  const s = normStatus(r.status);
-                  const isPending  = s === "pending";
-                  const isApproved = s === "approved";
-                  const isRejected = s === "rejected";
-                  const isCanceled = s === "canceled";
-
-                  const rawPartnerStatus = normStatus(shadowPartnerStatus[r.id] || r.partner_status || "waiting");
-                  const displayPartnerStatus = isCanceled ? "canceled" : rawPartnerStatus;
+              list.map((r) => {
+                const btn = loadingButtons[r.id] || {};
+                const effectivePartnerStatus =
+                  shadowPartnerStatus[r.id] || r.partner_status || "waiting";
 
                 const isRequester = user?.id === r.requester?.id;
 
+                const s = normStatus(r.status); // status utama: pending | approved | rejected | canceled
+
+// partner status mentah
+const rawPartnerStatus = shadowPartnerStatus[r.id] || r.partner_status || "waiting";
+
+// aturan override: kalau requester canceled → partner ikut canceled
+const displayPartnerStatus = s === "canceled" ? "canceled" : rawPartnerStatus;
+
                 const canPartnerAct =
                   user?.id === r.partner?.id &&
-                  s === "pending" &&
-                  rawPartnerStatus === "waiting";
+                  r.status === "pending" &&
+                  effectivePartnerStatus === "waiting";
 
-                const canApproverAct = canApproveSwap(r, rawPartnerStatus);
+                const canApproverAct = canApproveSwap(r, effectivePartnerStatus);
 
                 const canRequesterCancel =
                   isRequester &&
-                  s === "pending" &&
-                  rawPartnerStatus === "waiting";
+                  r.status === "pending" &&
+                  effectivePartnerStatus === "waiting";
 
-                // hanya admin yg boleh hapus
-                const canDeleteRow = canDelete();
+                // 🚩 perbaiki: evaluasi canDelete untuk baris ini
+                const canDeleteRow = canDelete(r);
 
+                // 🚩 hasActions harus mempertimbangkan semua aksi
                 const hasActions =
                   canPartnerAct || canApproverAct || canRequesterCancel || canDeleteRow;
 
@@ -471,79 +566,40 @@ const cmpSwap = (a, b) => {
                     <td className="border p-2 text-center">{r.date || "-"}</td>
 
                     {/* STATUS */}
-                    <td className="border px-2 py-1.5">
-                      <div className="flex flex-col items-start gap-1">
-                        {/* Baris 1: badge utama + partner (INLINE, satu baris) */}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge status={s} />
-
+                    <td className="border p-2">
+                      <div className="flex flex-col gap-1 sm:gap-1.5">
+                        {/* Baris 1 */}
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={r.status} />
                           {displayPartnerStatus && (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-[11px] leading-none text-gray-500">partner:</span>
-                              <StatusBadge status={displayPartnerStatus} />
-                            </span>
+                            <>
+                              <span className="hidden sm:inline text-xs text-gray-500">partner:</span>
+                              <span className="hidden sm:inline">
+                                <StatusBadge status={displayPartnerStatus} />
+                              </span>
+                            </>
                           )}
                         </div>
-
-                        {isPending && (
-                          <ReasonInline
-                            label={`Tukar Shift ${r.requester?.name} Dengan ${r.partner?.name}`}
-                            reason={
-                              displayPartnerStatus === "accepted"
-                                ? `Disetujui oleh partner (${r.partner?.name}). Menunggu persetujuan ${approverDisplay(r)}`
-                                : displayPartnerStatus === "pending" || displayPartnerStatus === "waiting"
-                                  ? `Menunggu konfirmasi  oleh partner (${r.partner?.name})`
-                                  : displayPartnerStatus === "declined" || displayPartnerStatus === "rejected"
-                                    ? `Partner menolak: ${r.partner_note || "-"}`
-                                    : `Menunggu persetujuan ${approverDisplay(r)}`
-                            }
-                            color={
-                              displayPartnerStatus === "declined" || displayPartnerStatus === "rejected"
-                                ? "text-red-600"
-                                : "text-yellow-600"
-                            }
-                            limit={10}
-                            maxWidthClass={reasonMaxW}
-                          />
+                        {/* Baris 2 (mobile only) */}
+                        {displayPartnerStatus && (
+                          <div className="flex items-center gap-2 sm:hidden">
+                            <span className="text-xs text-gray-500">partner:</span>
+                            <StatusBadge status={displayPartnerStatus} />
+                          </div>
                         )}
 
-                        {isApproved && (
-                          <ReasonInline
-                            label={`Tukar Shift ${r.requester?.name} Dengan ${r.partner?.name}`}
-                            reason={
-                              displayPartnerStatus === "accepted"
-                                ? `Disetujui oleh partner (${r.partner?.name}) dan ${approverDisplay(r)}. Efektif untuk ${r.date || "tanggal terkait"}`
-                                : `Disetujui oleh ${approverDisplay(r)}`
-                            }
-                            color="text-green-600"
-                            limit={11}
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
-
-                        {isRejected && (
-                          <ReasonInline
-                            label={`Tukar Shift ${r.requester?.name} Dengan ${r.partner?.name}`}
-                            reason={
-                              displayPartnerStatus === "declined"
-                                ? `Ditolak oleh Partner (${r.partner?.name}) : ${r.partner_note}`
-                                : `Patner (${r.partner?.name}) telah menyetujui, namun ditolak oleh ${approverDisplay(r)} : ${r.reject_reason}`
-                            }
-                            color="text-red-600"
-                            limit={8}
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
-
-                        {isCanceled && (
-                          <ReasonInline
-                            label={`Tukar Shift ${r.requester?.name} Dengan ${r.partner?.name}`}
-                            reason={`Dibatalkan oleh Pemohon (${r.requester?.name}) : ${r.cancel_reason}`}
-                            color="text-gray-600"
-                            limit={12}
-                            maxWidthClass={reasonMaxW}
-                          />
-                        )}
+                        {/* Baris 3: alasan (pakai getDecisionInfo/ReasonLine kalau ada) */}
+                        {(() => {
+                          const info = getDecisionInfo(r, displayPartnerStatus);
+                          if (!info || !info.text) return null;
+                          return (
+                            <ReasonLine
+                              label={info.label}
+                              reason={info.text}
+                              color={info.color}
+                            />
+                          );
+                        })()}
                       </div>
                     </td>
 
@@ -621,7 +677,7 @@ const cmpSwap = (a, b) => {
                         )}
                       </div>
 
-                      {/* jangan tampilkan '-' jika sudah ada aksi */}
+                      {/* 🚩 jangan tampilkan '-' jika sudah ada aksi */}
                       {!hasActions ? <span className="text-gray-400">-</span> : null}
                     </td>
                   </tr>
@@ -644,10 +700,10 @@ const cmpSwap = (a, b) => {
         onSubmit={submitReason}
         title={
           reasonModal.mode === "cosReject"
-            ? "Tolak Pengajuan"
+            ? "Tolak Pengajuan (COS)"
             : reasonModal.mode === "partnerDecline"
-            ? "Tolak Pengajuan"
-            : "Batalkan Pengajuan"
+            ? "Tolak Pengajuan (Partner)"
+            : "Batalkan Pengajuan (Pemohon)"
         }
         placeholder={
           reasonModal.mode === "requesterCancel"
