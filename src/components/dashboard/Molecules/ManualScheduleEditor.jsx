@@ -96,6 +96,9 @@ const ManualScheduleEditor = ({
           }
         });
 
+        console.log("✅ EMPLOYEES:", employeeList);
+console.log("✅ INITIAL SCHEDULE:", initial);
+
         setSchedules(initial);
       } catch (err) {
         toast.error('Gagal mengambil data karyawan/jadwal');
