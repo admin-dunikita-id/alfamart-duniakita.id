@@ -176,18 +176,18 @@ console.log("✅ INITIAL SCHEDULE:", initial);
   };
 
   // === Filter tampilan karyawan ===
-  const filteredEmployees = employees
-    .filter((emp) => !EXCLUDED_ROLES.has(String(emp?.role || '').toLowerCase()))
-    .filter((emp) => emp.store?.id === Number(storeId))
-    .filter((emp) => {
-      if (showOnlyEmpty) {
-        const empSchedule = schedules[emp.id] || {};
-        const isFilled = Object.values(empSchedule).some((v) => v);
-        if (isFilled) return false;
-      }
-      if (searchName && !norm(emp.name).includes(norm(searchName))) return false;
-      return true;
-    });
+const filteredEmployees = employees
+  .filter((emp) => !EXCLUDED_ROLES.has(String(emp?.role || '').toLowerCase()))
+  .filter((emp) => Number(emp.store?.id ?? emp.store_id ?? 0) === Number(storeId))
+  .filter((emp) => {
+    if (showOnlyEmpty) {
+      const empSchedule = schedules[emp.id] || {};
+      const isFilled = Object.values(empSchedule).some((v) => v);
+      if (isFilled) return false;
+    }
+    if (searchName && !norm(emp.name).includes(norm(searchName))) return false;
+    return true;
+  });
 
   // === Render ===
   return (
