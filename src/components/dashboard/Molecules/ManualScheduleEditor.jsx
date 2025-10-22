@@ -41,51 +41,58 @@ const ManualScheduleEditor = ({
   }, []);
 
   useEffect(() => {
-    const fetchEmployeesAndSchedules = async () => {
-      setIsLoading(true);
-      try {
-        const empRes = await scheduleAPI.getEmployees();
-        //const employeeList = empRes.data?.data || [];
-        const employeeList = (empRes.data?.data || []).filter(emp => {
+  const fetchEmployeesAndSchedules = async () => {
+    setIsLoading(true);
+    try {
+      // ===== Employees =====
+      const empJson = await scheduleAPI.getEmployees(); // <- ini return hasil .json()
+      // Ambil payload utama lalu paksa ke array
+      const empRaw = empJson?.data ?? empJson ?? [];
+      const empArr = Array.isArray(empRaw) ? empRaw : Object.values(empRaw || {});
+      // sembunyikan admin & ac
+      const employeeList = empArr.filter(emp => {
         const r = String(emp?.role || '').toLowerCase();
-         return r !== 'admin' && r !== 'ac';// 🚫 sembunyikan admin & ac
-       });
-        setEmployees(employeeList);
+        return r !== 'admin' && r !== 'ac';
+      });
+      setEmployees(employeeList);
 
-        const scheduleRes = await scheduleAPI.getSchedules({
-          store_id: storeId,
-          year,
-          month
-        });
-        const scheduleList = scheduleRes.data || scheduleRes || [];
+      // ===== Schedules =====
+      const scheduleJson = await scheduleAPI.getSchedules({ store_id: storeId, year, month });
+      // payload bisa: {data:[...]} atau object keyed; ubah ke array
+      const schedRaw = scheduleJson?.data ?? scheduleJson ?? [];
+      const scheduleList = Array.isArray(schedRaw) ? schedRaw : Object.values(schedRaw || []);
 
-        const initial = {};
-         employeeList.forEach((emp) => {
-   const r = String(emp?.role || '').toLowerCase();
-   if (r === 'admin' || r === 'ac') return; // 🚫 skip
-   initial[emp.id] = {};
-   for (let d = 1; d <= daysInMonth; d++) {
-     initial[emp.id][d] = '';
-   }
- });
+      // ===== Build initial grid =====
+      const initial = {};
+      employeeList.forEach(emp => {
+        initial[emp.id] = {};
+        for (let d = 1; d <= daysInMonth; d++) initial[emp.id][d] = '';
+      });
 
-        scheduleList.forEach(({ employee_id, day, shift_code }) => {
-          const d = parseInt(day);
-          if (!initial[employee_id]) return;
-          initial[employee_id][d] = shift_code;
-        });
+      // Map jadwal ke grid
+      scheduleList.forEach(item => {
+        // dukung beberapa kemungkinan nama field
+        const employee_id = item.employee_id ?? item.emp_id ?? item.employee?.id;
+        const day = parseInt(item.day ?? item.date_day ?? item.d, 10);
+        const shift_code = item.shift_code ?? item.shift?.code ?? item.code ?? '';
 
-        setSchedules(initial);
-      } catch (err) {
-        toast.error('Gagal mengambil data karyawan/jadwal');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        if (!employee_id || !Number.isFinite(day)) return;
+        if (!initial[employee_id]) return;
+        initial[employee_id][day] = shift_code || '';
+      });
 
-    if (storeId) fetchEmployeesAndSchedules();
-  }, [month, year, storeId]);
+      setSchedules(initial);
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mengambil data karyawan/jadwal');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (storeId) fetchEmployeesAndSchedules();
+}, [month, year, storeId]);
+
 
   // Notify parent
   useEffect(() => {
