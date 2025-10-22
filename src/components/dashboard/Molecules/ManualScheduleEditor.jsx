@@ -69,6 +69,9 @@ const ManualScheduleEditor = ({
    }
  });
 
+        console.log("scheduleRes:", scheduleRes);
+console.log("scheduleRes.data:", scheduleRes.data);
+
         scheduleList.forEach(({ employee_id, day, shift_code }) => {
           const d = parseInt(day);
           if (!initial[employee_id]) return;
