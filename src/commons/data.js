@@ -126,7 +126,7 @@ export const tabs = [
 export const generationOptions = [
     { id: 'auto', title: 'Otomatis', icon: '🤖', description: 'Generate otomatis sesuai aturan' },
     { id: 'manual', title: 'Manual', icon: '✋', description: 'Isi jadwal secara manual' },
-    //{ id: 'hybrid', title: 'Hybrid', icon: '⚖️', description: 'Manual lalu auto-fill' }
+    { id: 'hybrid', title: 'Hybrid', icon: '⚖️', description: 'Manual lalu auto-fill' }
 ];
 export const autoSubOptions = [
     { id: 'daily', title: 'Per Hari', description: 'Generate harian' },
