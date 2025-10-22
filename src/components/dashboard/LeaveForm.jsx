@@ -165,7 +165,7 @@ export default function LeaveForm() {
           name="end_date"
           value={form.end_date}
           onChange={handleChange}
-          min={form.start_date || minStartStr}  {/* end ≥ start */}
+          min={form.start_date || minStartStr}
           className="border p-2 w-full rounded"
           required
         />
