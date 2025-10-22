@@ -27,11 +27,17 @@ const ManualScheduleEditor = ({
 
   const EXCLUDED_ROLES = new Set(['admin', 'ac']);
 
+  // Helper ambil shift_code dari berbagai bentuk data
+  const getShiftCode = (s) =>
+    s?.shift_code ?? s?.shift?.code ?? s?.code ?? (typeof s === 'string' ? s : '');
+
+  // Ambil daftar shift
   useEffect(() => {
     const fetchShiftOptions = async () => {
       try {
         const res = await scheduleAPI.getShiftTypes();
-        setShiftOptions(res.data || []);
+        const raw = res?.data ?? res ?? [];
+        setShiftOptions(Array.isArray(raw) ? raw : Object.values(raw || {}));
       } catch (err) {
         toast.error('Gagal mengambil shift');
         console.error(err);
@@ -40,42 +46,54 @@ const ManualScheduleEditor = ({
     fetchShiftOptions();
   }, []);
 
+  // Ambil data karyawan + jadwal
   useEffect(() => {
     const fetchEmployeesAndSchedules = async () => {
       setIsLoading(true);
       try {
+        // === Employees ===
         const empRes = await scheduleAPI.getEmployees();
-        //const employeeList = empRes.data?.data || [];
-        const employeeList = (empRes.data?.data || []).filter(emp => {
-        const r = String(emp?.role || '').toLowerCase();
-         return r !== 'admin' && r !== 'ac';// 🚫 sembunyikan admin & ac
-       });
+        const empRaw = empRes?.data?.data ?? empRes?.data ?? empRes ?? [];
+        const empArr = Array.isArray(empRaw) ? empRaw : Object.values(empRaw || {});
+        const employeeList = empArr.filter((emp) => {
+          const r = String(emp?.role || '').toLowerCase();
+          return !EXCLUDED_ROLES.has(r);
+        });
         setEmployees(employeeList);
 
-        const scheduleRes = await scheduleAPI.getSchedules({
-          store_id: storeId,
-          year,
-          month
-        });
-        const scheduleList = scheduleRes.data || scheduleRes || [];
+        // === Schedules ===
+        const scheduleRes = await scheduleAPI.getSchedules({ store_id: storeId, year, month });
+        const scheduleMap = scheduleRes?.data ?? scheduleRes ?? {};
 
+        // === Siapkan grid kosong ===
         const initial = {};
-         employeeList.forEach((emp) => {
-   const r = String(emp?.role || '').toLowerCase();
-   if (r === 'admin' || r === 'ac') return; // 🚫 skip
-   initial[emp.id] = {};
-   for (let d = 1; d <= daysInMonth; d++) {
-     initial[emp.id][d] = '';
-   }
- });
+        employeeList.forEach((emp) => {
+          initial[emp.id] = {};
+          for (let d = 1; d <= daysInMonth; d++) initial[emp.id][d] = '';
+        });
 
-        console.log("scheduleRes:", scheduleRes);
-console.log("scheduleRes.data:", scheduleRes.data);
+        console.log('scheduleRes.data:', scheduleRes?.data);
 
-        scheduleList.forEach(({ employee_id, day, shift_code }) => {
-          const d = parseInt(day);
-          if (!initial[employee_id]) return;
-          initial[employee_id][d] = shift_code;
+        // === Isi grid dari scheduleMap ===
+        Object.values(scheduleMap || {}).forEach(({ employee, schedule }) => {
+          const empId = employee?.id;
+          if (!empId || !initial[empId]) return;
+
+          if (Array.isArray(schedule)) {
+            // Bentuk array [{day:1, shift_code:'P'}, ...]
+            schedule.forEach((s) => {
+              const dayNum = parseInt(s?.day, 10);
+              const code = getShiftCode(s);
+              if (Number.isFinite(dayNum)) initial[empId][dayNum] = code;
+            });
+          } else if (schedule && typeof schedule === 'object') {
+            // Bentuk object {"1":{shift_code:'P'}, ...}
+            Object.entries(schedule).forEach(([d, s]) => {
+              const dayNum = parseInt(d, 10);
+              const code = getShiftCode(s);
+              if (Number.isFinite(dayNum)) initial[empId][dayNum] = code;
+            });
+          }
         });
 
         setSchedules(initial);
@@ -90,7 +108,7 @@ console.log("scheduleRes.data:", scheduleRes.data);
     if (storeId) fetchEmployeesAndSchedules();
   }, [month, year, storeId]);
 
-  // Notify parent
+  // === Notifikasi perubahan ke parent ===
   useEffect(() => {
     if (!onChange) return;
     const payload = [];
@@ -109,6 +127,7 @@ console.log("scheduleRes.data:", scheduleRes.data);
     onChange(payload);
   }, [schedules]);
 
+  // === Handler perubahan shift ===
   const handleChange = (empId, day, value) => {
     setSchedules((prev) => ({
       ...prev,
@@ -119,6 +138,7 @@ console.log("scheduleRes.data:", scheduleRes.data);
     }));
   };
 
+  // === Handler reset jadwal ===
   const handleReset = async (empId, empName) => {
     const confirm = await Swal.fire({
       title: `Reset jadwal ${empName}?`,
@@ -152,13 +172,9 @@ console.log("scheduleRes.data:", scheduleRes.data);
     }
   };
 
-  //  const filteredEmployees = employees
-  //    .filter((emp) => emp.store?.id === Number(storeId))
-      const filteredEmployees = employees
-    .filter((emp) => {
-      const r = String(emp?.role || '').toLowerCase();
-      return r !== 'admin' && r !== 'ac';
-    })
+  // === Filter tampilan karyawan ===
+  const filteredEmployees = employees
+    .filter((emp) => !EXCLUDED_ROLES.has(String(emp?.role || '').toLowerCase()))
     .filter((emp) => emp.store?.id === Number(storeId))
     .filter((emp) => {
       if (showOnlyEmpty) {
@@ -170,6 +186,7 @@ console.log("scheduleRes.data:", scheduleRes.data);
       return true;
     });
 
+  // === Render ===
   return (
     <div className="space-y-4 relative z-10">
       <h2 className="font-semibold text-lg">
@@ -272,10 +289,7 @@ console.log("scheduleRes.data:", scheduleRes.data);
                                   emp.gender === 'male'
                               )
                               .map((shift) => (
-                                <option
-                                  key={shift.id}
-                                  value={shift.shift_code}
-                                >
+                                <option key={shift.id} value={shift.shift_code}>
                                   {shift.shift_code}
                                 </option>
                               ))}
