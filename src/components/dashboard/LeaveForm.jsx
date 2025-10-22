@@ -29,7 +29,7 @@ export default function LeaveForm() {
   // === batas minimal start_date (izin/sakit = H+1, cuti = H+7)
   const minStartStr = useMemo(() => {
     const today = new Date();
-    const lead = form.type === "cuti" ? 7 : 1;
+    const lead = form.type === "cuti" ? 7 : form.type === "izin" ? 1 : 0;
     const min = new Date(today.getFullYear(), today.getMonth(), today.getDate() + lead);
     return toYMD(min);
   }, [form.type]);
@@ -133,11 +133,6 @@ export default function LeaveForm() {
           <option value="cuti">Cuti</option>
           <option value="sakit">Sakit</option>
         </select>
-        <p className="text-xs text-slate-500 mt-1">
-          {form.type === "cuti"
-            ? "Cuti: minimal mulai H+7 dari hari ini."
-            : "Izin/Sakit: minimal mulai besok (H+1)."}
-        </p>
       </div>
 
       {/* Tanggal mulai */}
@@ -166,10 +161,9 @@ export default function LeaveForm() {
           className="border p-2 w-full rounded"
           required
         />
-      </div>
-
-      <div className="text-xs text-gray-500 mt-1">
+        <div className="text-xs text-gray-500 mt-1">
           Tanggal minimal: {minStartStr}
+      </div>
       </div>
 
       {/* Alasan */}
