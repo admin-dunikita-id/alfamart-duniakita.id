@@ -152,9 +152,6 @@ export default function LeaveForm() {
           className="border p-2 w-full rounded"
           required
         />
-        <div className="text-xs text-gray-500 mt-1">
-          Tanggal minimal: {minStartStr}
-        </div>
       </div>
 
       {/* Tanggal selesai */}
@@ -169,6 +166,10 @@ export default function LeaveForm() {
           className="border p-2 w-full rounded"
           required
         />
+      </div>
+
+      <div className="text-xs text-gray-500 mt-1">
+          Tanggal minimal: {minStartStr}
       </div>
 
       {/* Alasan */}
