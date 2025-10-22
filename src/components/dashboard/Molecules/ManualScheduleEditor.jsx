@@ -27,11 +27,11 @@ const ManualScheduleEditor = ({
 
   const EXCLUDED_ROLES = new Set(['admin', 'ac']);
 
-  // Helper ambil shift_code dari berbagai bentuk data
+  // helper ambil kode shift dari berbagai bentuk
   const getShiftCode = (s) =>
     s?.shift_code ?? s?.shift?.code ?? s?.code ?? (typeof s === 'string' ? s : '');
 
-  // Ambil daftar shift
+  // ambil daftar shift
   useEffect(() => {
     const fetchShiftOptions = async () => {
       try {
@@ -46,12 +46,12 @@ const ManualScheduleEditor = ({
     fetchShiftOptions();
   }, []);
 
-  // Ambil data karyawan + jadwal
+  // ambil karyawan + jadwal
   useEffect(() => {
     const fetchEmployeesAndSchedules = async () => {
       setIsLoading(true);
       try {
-        // === Employees ===
+        // === EMPLOYEES ===
         const empRes = await scheduleAPI.getEmployees();
         const empRaw = empRes?.data?.data ?? empRes?.data ?? empRes ?? [];
         const empArr = Array.isArray(empRaw) ? empRaw : Object.values(empRaw || {});
@@ -61,33 +61,32 @@ const ManualScheduleEditor = ({
         });
         setEmployees(employeeList);
 
-        // === Schedules ===
+        // === SCHEDULES ===
         const scheduleRes = await scheduleAPI.getSchedules({ store_id: storeId, year, month });
         const scheduleMap = scheduleRes?.data ?? scheduleRes ?? {};
 
-        // === Siapkan grid kosong ===
+        // === buat grid kosong ===
         const initial = {};
         employeeList.forEach((emp) => {
-          initial[emp.id] = {};
-          for (let d = 1; d <= daysInMonth; d++) initial[emp.id][d] = '';
+          const eid = String(emp.id);
+          initial[eid] = {};
+          for (let d = 1; d <= daysInMonth; d++) initial[eid][d] = '';
         });
 
-        console.log('scheduleRes.data:', scheduleRes?.data);
+        console.log('✅ scheduleRes.data:', scheduleRes?.data);
 
-        // === Isi grid dari scheduleMap ===
+        // === isi grid dengan jadwal dari server ===
         Object.values(scheduleMap || {}).forEach(({ employee, schedule }) => {
-          const empId = employee?.id;
+          const empId = String(employee?.id);
           if (!empId || !initial[empId]) return;
 
           if (Array.isArray(schedule)) {
-            // Bentuk array [{day:1, shift_code:'P'}, ...]
             schedule.forEach((s) => {
               const dayNum = parseInt(s?.day, 10);
               const code = getShiftCode(s);
               if (Number.isFinite(dayNum)) initial[empId][dayNum] = code;
             });
           } else if (schedule && typeof schedule === 'object') {
-            // Bentuk object {"1":{shift_code:'P'}, ...}
             Object.entries(schedule).forEach(([d, s]) => {
               const dayNum = parseInt(d, 10);
               const code = getShiftCode(s);
@@ -96,8 +95,8 @@ const ManualScheduleEditor = ({
           }
         });
 
-        console.log("✅ EMPLOYEES:", employeeList);
-console.log("✅ INITIAL SCHEDULE:", initial);
+        console.log('✅ EMPLOYEES:', employeeList.length);
+        console.log('✅ INITIAL SCHEDULE keys:', Object.keys(initial));
 
         setSchedules(initial);
       } catch (err) {
@@ -111,7 +110,7 @@ console.log("✅ INITIAL SCHEDULE:", initial);
     if (storeId) fetchEmployeesAndSchedules();
   }, [month, year, storeId]);
 
-  // === Notifikasi perubahan ke parent ===
+  // kirim perubahan ke parent
   useEffect(() => {
     if (!onChange) return;
     const payload = [];
@@ -130,7 +129,7 @@ console.log("✅ INITIAL SCHEDULE:", initial);
     onChange(payload);
   }, [schedules]);
 
-  // === Handler perubahan shift ===
+  // handler ubah jadwal
   const handleChange = (empId, day, value) => {
     setSchedules((prev) => ({
       ...prev,
@@ -141,7 +140,7 @@ console.log("✅ INITIAL SCHEDULE:", initial);
     }));
   };
 
-  // === Handler reset jadwal ===
+  // handler reset jadwal
   const handleReset = async (empId, empName) => {
     const confirm = await Swal.fire({
       title: `Reset jadwal ${empName}?`,
@@ -163,7 +162,7 @@ console.log("✅ INITIAL SCHEDULE:", initial);
 
       setSchedules((prev) => ({
         ...prev,
-        [empId]: Object.fromEntries(
+        [String(empId)]: Object.fromEntries(
           Array.from({ length: daysInMonth }, (_, i) => [i + 1, ''])
         )
       }));
@@ -175,21 +174,21 @@ console.log("✅ INITIAL SCHEDULE:", initial);
     }
   };
 
-  // === Filter tampilan karyawan ===
-const filteredEmployees = employees
-  .filter((emp) => !EXCLUDED_ROLES.has(String(emp?.role || '').toLowerCase()))
-  .filter((emp) => Number(emp.store?.id ?? emp.store_id ?? 0) === Number(storeId))
-  .filter((emp) => {
-    if (showOnlyEmpty) {
-      const empSchedule = schedules[emp.id] || {};
-      const isFilled = Object.values(empSchedule).some((v) => v);
-      if (isFilled) return false;
-    }
-    if (searchName && !norm(emp.name).includes(norm(searchName))) return false;
-    return true;
-  });
+  // === FILTER tampilkan karyawan sesuai store & pencarian ===
+  const filteredEmployees = employees
+    .filter((emp) => !EXCLUDED_ROLES.has(String(emp?.role || '').toLowerCase()))
+    .filter((emp) => Number(emp.store?.id ?? emp.store_id ?? 0) === Number(storeId))
+    .filter((emp) => {
+      if (showOnlyEmpty) {
+        const empSchedule = schedules[String(emp.id)] || {};
+        const isFilled = Object.values(empSchedule).some((v) => v);
+        if (isFilled) return false;
+      }
+      if (searchName && !norm(emp.name).includes(norm(searchName))) return false;
+      return true;
+    });
 
-  // === Render ===
+  // === RENDER ===
   return (
     <div className="space-y-4 relative z-10">
       <h2 className="font-semibold text-lg">
@@ -215,28 +214,23 @@ const filteredEmployees = employees
             <tr>
               <th className="p-2 text-left">Nama Karyawan</th>
               {Array.from({ length: daysInMonth }, (_, i) => (
-                <th key={i + 1} className="p-2">
-                  {i + 1}
-                </th>
+                <th key={i + 1} className="p-2">{i + 1}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {isLoading || employees.length === 0 || shiftOptions.length === 0 ? (
+            {isLoading || employees.length === 0 ? (
               [...Array(3)].map((_, rowIdx) => (
                 <tr key={rowIdx} className="border-t">
-                  <td className="p-2">
-                    <Skeleton width={120} />
-                  </td>
+                  <td className="p-2"><Skeleton width={120} /></td>
                   {Array.from({ length: daysInMonth }, (_, i) => (
-                    <td key={i} className="p-1">
-                      <Skeleton height={30} />
-                    </td>
+                    <td key={i} className="p-1"><Skeleton height={30} /></td>
                   ))}
                 </tr>
               ))
             ) : (
               filteredEmployees.map((emp) => {
+                const empId = String(emp.id);
                 const isFocused = focusedEmployeeId === emp.id;
                 const isDimmed = focusedEmployeeId && !isFocused;
 
@@ -255,9 +249,7 @@ const filteredEmployees = employees
                         type="button"
                         className="hover:underline focus:underline outline-none"
                         title="Klik untuk fokus per orang"
-                        onClick={() =>
-                          onFocusChange(isFocused ? null : emp.id)
-                        }
+                        onClick={() => onFocusChange(isFocused ? null : emp.id)}
                       >
                         {emp.name}
                       </button>
@@ -268,34 +260,28 @@ const filteredEmployees = employees
                         Reset
                       </button>
                     </td>
+
                     {Array.from({ length: daysInMonth }, (_, i) => {
                       const day = i + 1;
+                      const value = schedules[empId]?.[day] || '';
                       return (
                         <td
                           key={day}
-                          className={`p-1 ${
-                            !schedules[emp.id]?.[day] ? 'bg-red-50' : ''
-                          }`}
+                          className={`p-1 ${!value ? 'bg-red-50' : ''}`}
                         >
                           <select
-                            value={schedules[emp.id]?.[day] || ''}
+                            value={value}
                             onChange={(e) =>
-                              handleChange(emp.id, day, e.target.value)
+                              handleChange(empId, day, e.target.value)
                             }
                             className="w-16 text-sm text-center border border-gray-300 rounded-md bg-white appearance-none pr-6"
                           >
                             <option value="">-</option>
-                            {shiftOptions
-                              .filter(
-                                (shift) =>
-                                  shift.gender_restriction !== 'male_only' ||
-                                  emp.gender === 'male'
-                              )
-                              .map((shift) => (
-                                <option key={shift.id} value={shift.shift_code}>
-                                  {shift.shift_code}
-                                </option>
-                              ))}
+                            {shiftOptions.map((shift) => (
+                              <option key={shift.id} value={shift.shift_code}>
+                                {shift.shift_code}
+                              </option>
+                            ))}
                           </select>
                         </td>
                       );
