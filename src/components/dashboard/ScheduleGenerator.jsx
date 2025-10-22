@@ -401,7 +401,7 @@ const ScheduleGenerator = ({ onClose }) => {
             )}
 
             {/* Sub Pilihan Otomatis */}
-            {/*['auto', 'hybrid'].includes(generationType) && (
+            {['auto', 'hybrid'].includes(generationType) && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-3">Pilih Tipe {generationType === 'auto' ? 'Otomatis' : 'Hybrid'}:</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -421,7 +421,7 @@ const ScheduleGenerator = ({ onClose }) => {
                         ))}
                     </div>
                 </div>
-            )*/}
+            )}
 
             {/* Bulan dan Tahun untuk monthly, weekly, atau manual */}
             {(autoSubType === 'monthly' || autoSubType === 'weekly' || generationType !== 'auto') && (
