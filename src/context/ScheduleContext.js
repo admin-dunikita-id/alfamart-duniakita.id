@@ -33,46 +33,38 @@ export const ScheduleProvider = ({ children }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const queryClient = useQueryClient();
 
+const toArray = (json) => {
+  const payload = json?.data ?? json;          // ambil `data` kalau ada
+  if (Array.isArray(payload)) return payload;  // sudah array
+  if (payload == null) return [];              // null/undefined
+  if (typeof payload === 'object') return Object.values(payload); // object keyed -> array
+  return [];                                   // fallback
+};
+
     // API Functions
     const scheduleAPI = {
         // Get schedules for specific month
         getSchedulesByMonth: async (year, month) => {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${API_BASE_URL}/schedules?year=${year}&month=${month + 1}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                }
-            );
+  const token = localStorage.getItem('token');
+  const res = await fetch(
+    `${API_BASE_URL}/schedules?year=${year}&month=${month + 1}`, // fungsi ini memang pakai month+1
+    { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
+  );
+  if (!res.ok) throw new Error('Failed to fetch schedules');
+  const json = await res.json();
+  return toArray(json);
+},
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch schedules');
-            }
-
-            return response.json();
-        },
-
-        getSchedules: async ({ store_id, month, year }) => {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${API_BASE_URL}/schedules/manual?store_id=${store_id}&year=${year}&month=${month}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json',
-                    }
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch existing schedules');
-            }
-
-            return response.json();
-        },
+getSchedules: async ({ store_id, month, year }) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(
+    `${API_BASE_URL}/schedules/manual?store_id=${store_id}&year=${year}&month=${month}`, // pastikan konsisten (lihat catatan #4)
+    { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
+  );
+  if (!res.ok) throw new Error('Failed to fetch existing schedules');
+  const json = await res.json();
+  return toArray(json);
+},
 
         getScheduleLists: async ({ store_id, month, year }) => {
             const token = localStorage.getItem('token');
