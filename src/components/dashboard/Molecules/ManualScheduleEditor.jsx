@@ -29,7 +29,11 @@ const ManualScheduleEditor = ({
 
   // helper ambil kode shift dari berbagai bentuk
   const getShiftCode = (s) =>
-    s?.shift_code ?? s?.shift?.code ?? s?.code ?? (typeof s === 'string' ? s : '');
+  s?.shift_code
+  ?? s?.shift?.shift_code     // <<— tambahkan baris ini
+  ?? s?.shift?.code
+  ?? s?.code
+  ?? (typeof s === 'string' ? s : '');
 
   // ambil daftar shift
   useEffect(() => {
@@ -277,11 +281,11 @@ const ManualScheduleEditor = ({
                             className="w-16 text-sm text-center border border-gray-300 rounded-md bg-white appearance-none pr-6"
                           >
                             <option value="">-</option>
-                            {shiftOptions.map((shift) => (
-                              <option key={shift.id} value={shift.shift_code}>
-                                {shift.shift_code}
-                              </option>
-                            ))}
+                              {shiftOptions.map((shift) => {
+                                const code = getShiftCode(shift);
+                                if (!code) return null;
+                                return <option key={shift.id ?? code} value={code}>{code}</option>;
+                              })}
                           </select>
                         </td>
                       );
