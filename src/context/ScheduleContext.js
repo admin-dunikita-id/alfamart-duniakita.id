@@ -233,12 +233,6 @@ export const ScheduleProvider = ({ children }) => {
             if (!response.ok) {
                 throw new Error('Failed to fetch shift types');
             }
-            // pastikan hasilnya punya field shift_code
-              const list = await normJson(res);
-              return (Array.isArray(list) ? list : Object.values(list || {})).map(s => ({
-                ...s,
-                shift_code: s.shift_code ?? s.code ?? s?.shift?.code ?? '',
-              }));
             },
 
 getShiftSummary: async (params = {}) => {
