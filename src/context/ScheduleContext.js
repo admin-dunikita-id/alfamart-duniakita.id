@@ -100,7 +100,7 @@ const normJson = async (res) => {
                 throw new Error('Failed to fetch existing schedules');
             }
 
-            rreturn normJson(res);
+            return normJson(res);
         },
 
         // Generate new schedule for a month
