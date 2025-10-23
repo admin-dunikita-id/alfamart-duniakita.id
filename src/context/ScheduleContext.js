@@ -115,11 +115,9 @@ export const ScheduleProvider = ({ children }) => {
 
         // Save individual schedule entry
         saveScheduleEntry: async (scheduleEntry) => {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/schedules`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(scheduleEntry),
@@ -134,11 +132,9 @@ export const ScheduleProvider = ({ children }) => {
 
         // Update schedule entry
         updateScheduleEntry: async (scheduleId, scheduleEntry) => {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/schedules/${scheduleId}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(scheduleEntry),
@@ -233,7 +229,8 @@ export const ScheduleProvider = ({ children }) => {
             if (!response.ok) {
                 throw new Error('Failed to fetch shift types');
             }
-            },
+            return response.json();
+        },
 
 getShiftSummary: async (params = {}) => {
   const token = localStorage.getItem('token');
