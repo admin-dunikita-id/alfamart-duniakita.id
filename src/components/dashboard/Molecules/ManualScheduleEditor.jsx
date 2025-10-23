@@ -27,21 +27,11 @@ const ManualScheduleEditor = ({
 
   const EXCLUDED_ROLES = new Set(['admin', 'ac']);
 
-  // helper ambil kode shift dari berbagai bentuk
-  const getShiftCode = (s) =>
-  s?.shift_code
-  ?? s?.shift?.shift_code     // <<— tambahkan baris ini
-  ?? s?.shift?.code
-  ?? s?.code
-  ?? (typeof s === 'string' ? s : '');
-
-  // ambil daftar shift
   useEffect(() => {
     const fetchShiftOptions = async () => {
       try {
         const res = await scheduleAPI.getShiftTypes();
-        const raw = res?.data ?? res ?? [];
-        setShiftOptions(Array.isArray(raw) ? raw : Object.values(raw || {}));
+        setShiftOptions(res.data || []);
       } catch (err) {
         toast.error('Gagal mengambil shift');
         console.error(err);
@@ -50,57 +40,40 @@ const ManualScheduleEditor = ({
     fetchShiftOptions();
   }, []);
 
-  // ambil karyawan + jadwal
   useEffect(() => {
     const fetchEmployeesAndSchedules = async () => {
       setIsLoading(true);
       try {
-        // === EMPLOYEES ===
         const empRes = await scheduleAPI.getEmployees();
-        const empRaw = empRes?.data?.data ?? empRes?.data ?? empRes ?? [];
-        const empArr = Array.isArray(empRaw) ? empRaw : Object.values(empRaw || {});
-        const employeeList = empArr.filter((emp) => {
-          const r = String(emp?.role || '').toLowerCase();
-          return !EXCLUDED_ROLES.has(r);
-        });
+        //const employeeList = empRes.data?.data || [];
+        const employeeList = (empRes.data?.data || []).filter(emp => {
+        const r = String(emp?.role || '').toLowerCase();
+         return r !== 'admin' && r !== 'ac';// 🚫 sembunyikan admin & ac
+       });
         setEmployees(employeeList);
 
-        // === SCHEDULES ===
-        const scheduleRes = await scheduleAPI.getSchedules({ store_id: storeId, year, month });
-        const scheduleMap = scheduleRes?.data ?? scheduleRes ?? {};
+        const scheduleRes = await scheduleAPI.getSchedules({
+          store_id: storeId,
+          year,
+          month
+        });
+        const scheduleList = scheduleRes.data || scheduleRes || [];
 
-        // === buat grid kosong ===
         const initial = {};
-        employeeList.forEach((emp) => {
-          const eid = String(emp.id);
-          initial[eid] = {};
-          for (let d = 1; d <= daysInMonth; d++) initial[eid][d] = '';
+         employeeList.forEach((emp) => {
+   const r = String(emp?.role || '').toLowerCase();
+   if (r === 'admin' || r === 'ac') return; // 🚫 skip
+   initial[emp.id] = {};
+   for (let d = 1; d <= daysInMonth; d++) {
+     initial[emp.id][d] = '';
+   }
+ });
+
+        scheduleList.forEach(({ employee_id, day, shift_code }) => {
+          const d = parseInt(day);
+          if (!initial[employee_id]) return;
+          initial[employee_id][d] = shift_code;
         });
-
-        console.log('✅ scheduleRes.data:', scheduleRes?.data);
-
-        // === isi grid dengan jadwal dari server ===
-        Object.values(scheduleMap || {}).forEach(({ employee, schedule }) => {
-          const empId = String(employee?.id);
-          if (!empId || !initial[empId]) return;
-
-          if (Array.isArray(schedule)) {
-            schedule.forEach((s) => {
-              const dayNum = parseInt(s?.day, 10);
-              const code = getShiftCode(s);
-              if (Number.isFinite(dayNum)) initial[empId][dayNum] = code;
-            });
-          } else if (schedule && typeof schedule === 'object') {
-            Object.entries(schedule).forEach(([d, s]) => {
-              const dayNum = parseInt(d, 10);
-              const code = getShiftCode(s);
-              if (Number.isFinite(dayNum)) initial[empId][dayNum] = code;
-            });
-          }
-        });
-
-        console.log('✅ EMPLOYEES:', employeeList.length);
-        console.log('✅ INITIAL SCHEDULE keys:', Object.keys(initial));
 
         setSchedules(initial);
       } catch (err) {
@@ -114,7 +87,7 @@ const ManualScheduleEditor = ({
     if (storeId) fetchEmployeesAndSchedules();
   }, [month, year, storeId]);
 
-  // kirim perubahan ke parent
+  // Notify parent
   useEffect(() => {
     if (!onChange) return;
     const payload = [];
@@ -133,7 +106,6 @@ const ManualScheduleEditor = ({
     onChange(payload);
   }, [schedules]);
 
-  // handler ubah jadwal
   const handleChange = (empId, day, value) => {
     setSchedules((prev) => ({
       ...prev,
@@ -144,7 +116,6 @@ const ManualScheduleEditor = ({
     }));
   };
 
-  // handler reset jadwal
   const handleReset = async (empId, empName) => {
     const confirm = await Swal.fire({
       title: `Reset jadwal ${empName}?`,
@@ -166,7 +137,7 @@ const ManualScheduleEditor = ({
 
       setSchedules((prev) => ({
         ...prev,
-        [String(empId)]: Object.fromEntries(
+        [empId]: Object.fromEntries(
           Array.from({ length: daysInMonth }, (_, i) => [i + 1, ''])
         )
       }));
@@ -178,13 +149,17 @@ const ManualScheduleEditor = ({
     }
   };
 
-  // === FILTER tampilkan karyawan sesuai store & pencarian ===
-  const filteredEmployees = employees
-    .filter((emp) => !EXCLUDED_ROLES.has(String(emp?.role || '').toLowerCase()))
-    .filter((emp) => Number(emp.store?.id ?? emp.store_id ?? 0) === Number(storeId))
+  //  const filteredEmployees = employees
+  //    .filter((emp) => emp.store?.id === Number(storeId))
+      const filteredEmployees = employees
+    .filter((emp) => {
+      const r = String(emp?.role || '').toLowerCase();
+      return r !== 'admin' && r !== 'ac';
+    })
+    .filter((emp) => emp.store?.id === Number(storeId))
     .filter((emp) => {
       if (showOnlyEmpty) {
-        const empSchedule = schedules[String(emp.id)] || {};
+        const empSchedule = schedules[emp.id] || {};
         const isFilled = Object.values(empSchedule).some((v) => v);
         if (isFilled) return false;
       }
@@ -192,7 +167,6 @@ const ManualScheduleEditor = ({
       return true;
     });
 
-  // === RENDER ===
   return (
     <div className="space-y-4 relative z-10">
       <h2 className="font-semibold text-lg">
@@ -218,23 +192,28 @@ const ManualScheduleEditor = ({
             <tr>
               <th className="p-2 text-left">Nama Karyawan</th>
               {Array.from({ length: daysInMonth }, (_, i) => (
-                <th key={i + 1} className="p-2">{i + 1}</th>
+                <th key={i + 1} className="p-2">
+                  {i + 1}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {isLoading || employees.length === 0 ? (
+            {isLoading || employees.length === 0 || shiftOptions.length === 0 ? (
               [...Array(3)].map((_, rowIdx) => (
                 <tr key={rowIdx} className="border-t">
-                  <td className="p-2"><Skeleton width={120} /></td>
+                  <td className="p-2">
+                    <Skeleton width={120} />
+                  </td>
                   {Array.from({ length: daysInMonth }, (_, i) => (
-                    <td key={i} className="p-1"><Skeleton height={30} /></td>
+                    <td key={i} className="p-1">
+                      <Skeleton height={30} />
+                    </td>
                   ))}
                 </tr>
               ))
             ) : (
               filteredEmployees.map((emp) => {
-                const empId = String(emp.id);
                 const isFocused = focusedEmployeeId === emp.id;
                 const isDimmed = focusedEmployeeId && !isFocused;
 
@@ -253,7 +232,9 @@ const ManualScheduleEditor = ({
                         type="button"
                         className="hover:underline focus:underline outline-none"
                         title="Klik untuk fokus per orang"
-                        onClick={() => onFocusChange(isFocused ? null : emp.id)}
+                        onClick={() =>
+                          onFocusChange(isFocused ? null : emp.id)
+                        }
                       >
                         {emp.name}
                       </button>
@@ -264,28 +245,37 @@ const ManualScheduleEditor = ({
                         Reset
                       </button>
                     </td>
-
                     {Array.from({ length: daysInMonth }, (_, i) => {
                       const day = i + 1;
-                      const value = schedules[empId]?.[day] || '';
                       return (
                         <td
                           key={day}
-                          className={`p-1 ${!value ? 'bg-red-50' : ''}`}
+                          className={`p-1 ${
+                            !schedules[emp.id]?.[day] ? 'bg-red-50' : ''
+                          }`}
                         >
                           <select
-                            value={value}
+                            value={schedules[emp.id]?.[day] || ''}
                             onChange={(e) =>
-                              handleChange(empId, day, e.target.value)
+                              handleChange(emp.id, day, e.target.value)
                             }
                             className="w-16 text-sm text-center border border-gray-300 rounded-md bg-white appearance-none pr-6"
                           >
                             <option value="">-</option>
-                              {shiftOptions.map((shift) => {
-                                const code = getShiftCode(shift);
-                                if (!code) return null;
-                                return <option key={shift.id ?? code} value={code}>{code}</option>;
-                              })}
+                            {shiftOptions
+                              .filter(
+                                (shift) =>
+                                  shift.gender_restriction !== 'male_only' ||
+                                  emp.gender === 'male'
+                              )
+                              .map((shift) => (
+                                <option
+                                  key={shift.id}
+                                  value={shift.shift_code}
+                                >
+                                  {shift.shift_code}
+                                </option>
+                              ))}
                           </select>
                         </td>
                       );
