@@ -33,16 +33,6 @@ export const ScheduleProvider = ({ children }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const queryClient = useQueryClient();
 
-    // helper normalizer biar konsisten
-const normJson = async (res) => {
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(t || 'Request failed');
-  }
-  const j = await res.json();
-  return j?.data ?? j; // <<— KUNCI
-};
-
     // API Functions
     const scheduleAPI = {
         // Get schedules for specific month
@@ -62,7 +52,7 @@ const normJson = async (res) => {
                 throw new Error('Failed to fetch schedules');
             }
 
-            return normJson(res);
+            return response.json();
         },
 
         getSchedules: async ({ store_id, month, year }) => {
@@ -81,7 +71,7 @@ const normJson = async (res) => {
                 throw new Error('Failed to fetch existing schedules');
             }
 
-            return normJson(res);
+            return response.json();
         },
 
         getScheduleLists: async ({ store_id, month, year }) => {
@@ -100,7 +90,7 @@ const normJson = async (res) => {
                 throw new Error('Failed to fetch existing schedules');
             }
 
-            return normJson(res);
+            return response.json();
         },
 
         // Generate new schedule for a month
@@ -228,7 +218,7 @@ const normJson = async (res) => {
                 throw new Error('Failed to fetch employees');
             }
 
-            return normJson(res);
+            return response.json();
         },
 
         // Get shift types
