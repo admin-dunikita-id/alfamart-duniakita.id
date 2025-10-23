@@ -33,6 +33,16 @@ export const ScheduleProvider = ({ children }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const queryClient = useQueryClient();
 
+    // helper normalizer biar konsisten
+const normJson = async (res) => {
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Request failed');
+  }
+  const j = await res.json();
+  return j?.data ?? j; // <<— KUNCI
+};
+
     // API Functions
     const scheduleAPI = {
         // Get schedules for specific month
@@ -52,7 +62,7 @@ export const ScheduleProvider = ({ children }) => {
                 throw new Error('Failed to fetch schedules');
             }
 
-            return response.json();
+            return normJson(res);
         },
 
         getSchedules: async ({ store_id, month, year }) => {
@@ -71,7 +81,7 @@ export const ScheduleProvider = ({ children }) => {
                 throw new Error('Failed to fetch existing schedules');
             }
 
-            return response.json();
+            return normJson(res);
         },
 
         getScheduleLists: async ({ store_id, month, year }) => {
@@ -90,7 +100,7 @@ export const ScheduleProvider = ({ children }) => {
                 throw new Error('Failed to fetch existing schedules');
             }
 
-            return response.json();
+            rreturn normJson(res);
         },
 
         // Generate new schedule for a month
@@ -115,9 +125,11 @@ export const ScheduleProvider = ({ children }) => {
 
         // Save individual schedule entry
         saveScheduleEntry: async (scheduleEntry) => {
+            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/schedules`, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(scheduleEntry),
@@ -132,9 +144,11 @@ export const ScheduleProvider = ({ children }) => {
 
         // Update schedule entry
         updateScheduleEntry: async (scheduleId, scheduleEntry) => {
+            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/schedules/${scheduleId}`, {
                 method: 'PUT',
                 headers: {
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(scheduleEntry),
@@ -214,7 +228,7 @@ export const ScheduleProvider = ({ children }) => {
                 throw new Error('Failed to fetch employees');
             }
 
-            return response.json();
+            return normJson(res);
         },
 
         // Get shift types
@@ -229,8 +243,13 @@ export const ScheduleProvider = ({ children }) => {
             if (!response.ok) {
                 throw new Error('Failed to fetch shift types');
             }
-            return response.json();
-        },
+            // pastikan hasilnya punya field shift_code
+              const list = await normJson(res);
+              return (Array.isArray(list) ? list : Object.values(list || {})).map(s => ({
+                ...s,
+                shift_code: s.shift_code ?? s.code ?? s?.shift?.code ?? '',
+              }));
+            },
 
 getShiftSummary: async (params = {}) => {
   const token = localStorage.getItem('token');
