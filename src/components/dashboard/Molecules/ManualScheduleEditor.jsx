@@ -12,7 +12,8 @@ const ManualScheduleEditor = ({
   onChange,
   searchName = '',
   focusedEmployeeId = null,
-  onFocusChange = () => {}
+  onFocusChange = () => {},
+  compact = false, // 🔥 kunci
 }) => {
   const [employees, setEmployees] = useState([]);
   const [schedules, setSchedules] = useState({});
@@ -24,8 +25,6 @@ const ManualScheduleEditor = ({
 
   const norm = (s = '') =>
     s.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-  const EXCLUDED_ROLES = new Set(['admin', 'ac']);
 
   useEffect(() => {
     const fetchShiftOptions = async () => {
@@ -45,29 +44,29 @@ const ManualScheduleEditor = ({
       setIsLoading(true);
       try {
         const empRes = await scheduleAPI.getEmployees();
-        //const employeeList = empRes.data?.data || [];
+
         const employeeList = (empRes.data?.data || []).filter(emp => {
-        const r = String(emp?.role || '').toLowerCase();
-         return r !== 'admin' && r !== 'ac';// 🚫 sembunyikan admin & ac
-       });
+          const r = String(emp?.role || '').toLowerCase();
+          return r !== 'admin' && r !== 'ac';
+        });
         setEmployees(employeeList);
 
         const scheduleRes = await scheduleAPI.getSchedules({
           store_id: storeId,
           year,
-          month
+          month,
         });
         const scheduleList = scheduleRes.data || scheduleRes || [];
 
         const initial = {};
-         employeeList.forEach((emp) => {
-   const r = String(emp?.role || '').toLowerCase();
-   if (r === 'admin' || r === 'ac') return; // 🚫 skip
-   initial[emp.id] = {};
-   for (let d = 1; d <= daysInMonth; d++) {
-     initial[emp.id][d] = '';
-   }
- });
+        employeeList.forEach((emp) => {
+          const r = String(emp?.role || '').toLowerCase();
+          if (r === 'admin' || r === 'ac') return;
+          initial[emp.id] = {};
+          for (let d = 1; d <= daysInMonth; d++) {
+            initial[emp.id][d] = '';
+          }
+        });
 
         scheduleList.forEach(({ employee_id, day, shift_code }) => {
           const d = parseInt(day);
@@ -87,7 +86,7 @@ const ManualScheduleEditor = ({
     if (storeId) fetchEmployeesAndSchedules();
   }, [month, year, storeId]);
 
-  // Notify parent
+  // kirim data ke parent
   useEffect(() => {
     if (!onChange) return;
     const payload = [];
@@ -98,7 +97,7 @@ const ManualScheduleEditor = ({
           payload.push({
             employee_id: empId,
             day,
-            shift_code: shift
+            shift_code: shift,
           });
         }
       }
@@ -111,8 +110,8 @@ const ManualScheduleEditor = ({
       ...prev,
       [empId]: {
         ...prev[empId],
-        [day]: value
-      }
+        [day]: value,
+      },
     }));
   };
 
@@ -123,7 +122,7 @@ const ManualScheduleEditor = ({
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Ya, reset',
-      cancelButtonText: 'Batal'
+      cancelButtonText: 'Batal',
     });
     if (!confirm.isConfirmed) return;
 
@@ -132,14 +131,14 @@ const ManualScheduleEditor = ({
         employee_id: empId,
         store_id: storeId,
         month,
-        year
+        year,
       });
 
       setSchedules((prev) => ({
         ...prev,
         [empId]: Object.fromEntries(
           Array.from({ length: daysInMonth }, (_, i) => [i + 1, ''])
-        )
+        ),
       }));
 
       Swal.fire('Sukses', 'Jadwal telah dihapus.', 'success');
@@ -149,34 +148,74 @@ const ManualScheduleEditor = ({
     }
   };
 
-  //  const filteredEmployees = employees
-  //    .filter((emp) => emp.store?.id === Number(storeId))
-      const filteredEmployees = employees
-    .filter((emp) => {
-      const r = String(emp?.role || '').toLowerCase();
-      return r !== 'admin' && r !== 'ac';
-    })
-    .filter((emp) => emp.store?.id === Number(storeId))
-    .filter((emp) => {
-      if (showOnlyEmpty) {
-        const empSchedule = schedules[emp.id] || {};
-        const isFilled = Object.values(empSchedule).some((v) => v);
-        if (isFilled) return false;
-      }
-      if (searchName && !norm(emp.name).includes(norm(searchName))) return false;
-      return true;
-    });
+const filteredEmployees = employees
+  .filter((emp) => {
+    const r = String(emp?.role || '').trim().toLowerCase();
+    return r !== 'admin' && r !== 'ac';
+  })
+  .filter((emp) => emp.store?.id === Number(storeId))
+  .filter((emp) => {
+    if (showOnlyEmpty) {
+      const empSchedule = schedules[emp.id] || {};
+      const isFilled = Object.values(empSchedule).some((v) => v);
+      if (isFilled) return false;
+    }
+    if (searchName && !norm(emp.name).includes(norm(searchName))) return false;
+    return true;
+  });
+
+  // 👇 helper class tergantung compact
+  const cls = {
+    title: compact
+      ? 'font-semibold text-sm leading-tight'
+      : 'font-semibold text-lg leading-normal',
+    checkboxRow: compact
+      ? 'flex items-center gap-2 text-[11px] leading-tight'
+      : 'flex items-center gap-3 text-sm leading-normal',
+
+    tableWrapper: 'overflow-auto border rounded',
+
+    thName: compact
+      ? 'border-none bg-gray-100 text-left text-gray-700 font-medium sticky left-0 z-[2] px-2 py-1 text-[11px] leading-tight min-w-[100px]'
+      : 'border-none bg-gray-100 text-left text-gray-700 font-medium sticky left-0 z-[2] px-3 py-2 text-sm leading-normal min-w-[140px]',
+
+    thDay: compact
+      ? 'border-none bg-gray-100 text-center text-gray-700 font-medium px-1 py-1 text-[11px] leading-tight min-w-[28px]'
+      : 'border-none bg-gray-100 text-center text-gray-700 font-medium px-2 py-2 text-sm leading-normal min-w-[40px]',
+
+    tdName: compact
+      ? 'border-none text-left text-gray-900 bg-white sticky left-0 z-[1] px-2 py-1 text-[11px] leading-tight'
+      : 'border-none text-left text-gray-900 bg-white sticky left-0 z-[1] px-3 py-2 text-sm leading-normal',
+
+    tdCellBase: compact
+      ? 'border-none text-center align-middle px-1 py-1'
+      : 'border-none text-center align-middle px-2 py-2',
+
+    select: compact
+      ? 'border border-gray-300 rounded-md bg-white text-center appearance-none w-12 h-7 text-[11px] leading-none pr-4'
+      : 'border border-gray-300 rounded-md bg-white text-center appearance-none w-16 h-9 text-sm leading-normal pr-6',
+
+    empNameBtn: compact
+      ? 'hover:underline focus:underline outline-none text-[11px]'
+      : 'hover:underline focus:underline outline-none text-sm',
+
+    resetBtn: compact
+      ? 'ml-2 text-red-600 underline text-[10px]'
+      : 'ml-2 text-red-600 underline text-xs',
+  };
 
   return (
     <div className="space-y-4 relative z-10">
-      <h2 className="font-semibold text-lg">
+      {/* judul */}
+      <h2 className={cls.title}>
         Input Jadwal Manual -{' '}
         {new Date(year, month - 1).toLocaleString('id-ID', { month: 'long' })}{' '}
         {year}
       </h2>
 
-      <div className="flex items-center gap-3">
-        <label className="text-sm flex items-center gap-2">
+      {/* filter checkbox */}
+      <div className={cls.checkboxRow}>
+        <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={showOnlyEmpty}
@@ -186,28 +225,33 @@ const ManualScheduleEditor = ({
         </label>
       </div>
 
-      <div className="overflow-auto border rounded">
-        <table className="min-w-full text-sm text-center">
+      {/* tabel */}
+      <div className={cls.tableWrapper}>
+        <table className="min-w-full text-center border-collapse">
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
-              <th className="p-2 text-left">Nama Karyawan</th>
+              <th className={cls.thName}>Nama Karyawan</th>
               {Array.from({ length: daysInMonth }, (_, i) => (
-                <th key={i + 1} className="p-2">
+                <th key={i + 1} className={cls.thDay}>
                   {i + 1}
                 </th>
               ))}
             </tr>
           </thead>
+
           <tbody>
             {isLoading || employees.length === 0 || shiftOptions.length === 0 ? (
               [...Array(3)].map((_, rowIdx) => (
                 <tr key={rowIdx} className="border-t">
-                  <td className="p-2">
-                    <Skeleton width={120} />
+                  <td className={cls.tdName}>
+                    <Skeleton
+                      width={compact ? 80 : 120}
+                      height={compact ? 12 : 16}
+                    />
                   </td>
                   {Array.from({ length: daysInMonth }, (_, i) => (
-                    <td key={i} className="p-1">
-                      <Skeleton height={30} />
+                    <td key={i} className={cls.tdCellBase}>
+                      <Skeleton height={compact ? 20 : 30} />
                     </td>
                   ))}
                 </tr>
@@ -227,10 +271,11 @@ const ManualScheduleEditor = ({
                       !isDimmed ? 'hover:bg-gray-50' : ''
                     ].join(' ')}
                   >
-                    <td className="p-2 text-left font-medium">
+                    {/* kolom nama */}
+                    <td className={cls.tdName}>
                       <button
                         type="button"
-                        className="hover:underline focus:underline outline-none"
+                        className={cls.empNameBtn}
                         title="Klik untuk fokus per orang"
                         onClick={() =>
                           onFocusChange(isFocused ? null : emp.id)
@@ -238,19 +283,22 @@ const ManualScheduleEditor = ({
                       >
                         {emp.name}
                       </button>
+
                       <button
                         onClick={() => handleReset(emp.id, emp.name)}
-                        className="ml-2 text-xs text-red-600 underline"
+                        className={cls.resetBtn}
                       >
                         Reset
                       </button>
                     </td>
+
+                    {/* kolom per tanggal */}
                     {Array.from({ length: daysInMonth }, (_, i) => {
                       const day = i + 1;
                       return (
                         <td
                           key={day}
-                          className={`p-1 ${
+                          className={`${cls.tdCellBase} ${
                             !schedules[emp.id]?.[day] ? 'bg-red-50' : ''
                           }`}
                         >
@@ -259,7 +307,7 @@ const ManualScheduleEditor = ({
                             onChange={(e) =>
                               handleChange(emp.id, day, e.target.value)
                             }
-                            className="w-16 text-sm text-center border border-gray-300 rounded-md bg-white appearance-none pr-6"
+                            className={cls.select}
                           >
                             <option value="">-</option>
                             {shiftOptions
